@@ -19,7 +19,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, ass: Res<AssetServer>) {
-    let earth_handle = ass.load("earth_high.glb#Scene0");
+    let earth_handle = ass.load("earth_hd.glb#Scene0");
     let skybox_handle = ass.load("skybox1.glb#Scene0");
 
     // light
