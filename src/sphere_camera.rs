@@ -106,7 +106,7 @@ pub fn sphere_camera(
 
         let (x,y,z) = to_cart_coords(radius, theta_actual, phi); 
 
-        let (l_x, l_y, l_z) = to_cart_coords(radius + 10., theta_actual, (phi+std::f32::consts::PI/2.)-0.1);
+        let (l_x, l_y, l_z) = to_cart_coords(radius + 10., theta_actual, phi);
         
 
         let mut look_at : Vec3 = Vec3::new(0.,0.,0.);

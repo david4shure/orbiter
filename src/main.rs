@@ -11,9 +11,9 @@ fn main() {
         .add_plugins(WorldInspectorPlugin::new())
         .add_systems(Update, rotate_earth)
         .add_systems(Update, sphere_camera::sphere_camera)
-        .add_systems(Update, lock_camera_to_rotation)
-        .add_systems(Update, sync_base_theta_for_sphere_camera)
-        .add_systems(Update, toggle_look_outward_camera)
+        //.add_systems(Update, lock_camera_to_rotation)
+        //.add_systems(Update, sync_base_theta_for_sphere_camera)
+        //.add_systems(Update, toggle_look_outward_camera)
         .register_type::<sphere_camera::SphereCamera>()
         .run();
 }
@@ -34,16 +34,16 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
     });
 
     // camera
-    commands.spawn((
-        Camera3dBundle {
-            transform: Transform::from_xyz(0., 20., 44.).looking_at(Vec3::ZERO, Vec3::Y),
-            ..default()
-        },
-        sphere_camera::SphereCamera {
-            radius: 350.,
-            ..Default::default()
-        },
-    ));
+    //commands.spawn((
+    //    Camera3dBundle {
+    //        transform: Transform::from_xyz(0., 20., 44.).looking_at(Vec3::ZERO, Vec3::Y),
+    //        ..default()
+    //    },
+    //    sphere_camera::SphereCamera {
+    //        radius: 350.,
+    //        ..Default::default()
+    //    },
+    //));
 
     // add earth
     commands.spawn((
@@ -54,7 +54,18 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
             ..default()
         },
         sphere_camera::EarthBody,
-    ));
+    )).with_children(|parent| {
+        parent.spawn((
+            Camera3dBundle {
+                transform: Transform::from_xyz(0., 20., 44.).looking_at(Vec3::ZERO, Vec3::Y),
+                ..default()
+            },
+            sphere_camera::SphereCamera {
+                radius: 350.,
+                ..Default::default()
+            }
+        ));
+    });
 
     // Skybox
     commands
@@ -72,38 +83,37 @@ fn rotate_earth(mut query: Query<&mut Transform, With<sphere_camera::EarthBody>>
     }
 }
 
-fn sync_base_theta_for_sphere_camera(
-    mut earth_trans_q: Query<(&mut sphere_camera::EarthBody, &mut Transform)>,
-    mut sphere_cam_q: Query<&mut sphere_camera::SphereCamera>,
-    
-) {
-    for (_, transform) in earth_trans_q.iter_mut() {
-        let euler = transform.rotation.to_euler(EulerRot::ZYX);
-
-        for mut pan_orbit in sphere_cam_q.iter_mut() {
-            pan_orbit.base_theta = euler.0;     
-        }
-    }
-}
-
-fn toggle_look_outward_camera(
-    keys: Res<Input<KeyCode>>,
-    mut query: Query<&mut sphere_camera::SphereCamera>,
-) {
-    if keys.just_pressed(KeyCode::R) {
-        for mut sphere_camera in query.iter_mut() {
-            sphere_camera.look_outward = !sphere_camera.look_outward;
-        }
-    }
-}
-
-fn lock_camera_to_rotation(
-    keys: Res<Input<KeyCode>>,
-    mut query: Query<&mut sphere_camera::SphereCamera>,
-) {
-    for mut sphere_camera in query.iter_mut() {
-        if keys.just_pressed(KeyCode::L) {
-            sphere_camera.locked = !sphere_camera.locked;
-        }
-    }
-}
+//fn sync_base_theta_for_sphere_camera(
+//    mut earth_trans_q: Query<(&mut sphere_camera::EarthBody, &mut Transform)>,
+//    mut sphere_cam_q: Query<&mut sphere_camera::SphereCamera>,
+//) {
+//    for (_, transform) in earth_trans_q.iter_mut() {
+//        let euler = transform.rotation.to_euler(EulerRot::ZYX);
+//
+//        for mut pan_orbit in sphere_cam_q.iter_mut() {
+//            pan_orbit.base_theta = euler.0;
+//        }
+//    }
+//}
+//
+//fn toggle_look_outward_camera(
+//    keys: Res<Input<KeyCode>>,
+//    mut query: Query<&mut sphere_camera::SphereCamera>,
+//) {
+//    if keys.just_pressed(KeyCode::R) {
+//        for mut sphere_camera in query.iter_mut() {
+//            sphere_camera.look_outward = !sphere_camera.look_outward;
+//        }
+//    }
+//}
+//
+//fn lock_camera_to_rotation(
+//    keys: Res<Input<KeyCode>>,
+//    mut query: Query<&mut sphere_camera::SphereCamera>,
+//) {
+//    for mut sphere_camera in query.iter_mut() {
+//        if keys.just_pressed(KeyCode::L) {
+//            sphere_camera.locked = !sphere_camera.locked;
+//        }
+//    }
+//}
