@@ -33,12 +33,72 @@ impl Default for SphereCamera {
     }
 }
 
+pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3,Vec3) {
+    let mut phi = sphere_camera.phi;
+    let theta = sphere_camera.theta;
+    let radius = sphere_camera.radius;
+
+    const FLIP_PADDING: f32 = 0.0015;
+
+    if phi >= std::f32::consts::PI - FLIP_PADDING {
+        phi = std::f32::consts::PI - FLIP_PADDING;
+    } else if phi <= FLIP_PADDING {
+        phi = FLIP_PADDING;
+    }
+
+    let mut theta_actual = theta;
+
+    if sphere_camera.locked {
+        theta_actual -= sphere_camera.base_theta;
+    }
+
+    let (x,y,z) = to_cart_coords(radius, theta_actual, phi); 
+
+    let (l_x, l_y, l_z) = to_cart_coords(radius + 10., theta_actual, phi);
+
+    let mut look_at : Vec3 = Vec3::new(0.,0.,0.);
+
+    (Vec3::new(l_x,l_y,l_z), Vec3::new(x,y,z))
+}
+
 pub fn to_cart_coords(r: f32, theta: f32, phi: f32) -> (f32, f32, f32) {
     let x = r * phi.sin() * theta.cos();
     let y = r * phi.cos();
     let z = r * phi.sin() * theta.sin();
 
     (x, y, z)
+}
+
+pub fn sync_spherical_cam_to_3d_cam(
+    mut query: Query<(&mut SphereCamera, &mut Transform)>,
+) {
+    for (mut pan_orbit, mut transform) in query.iter_mut() {
+        if pan_orbit.look_outward {
+            return;
+        }
+
+        let mut theta_actual: f32 = pan_orbit.theta;
+
+        if pan_orbit.locked {
+            theta_actual += pan_orbit.base_theta;
+        }
+    
+        let (x,y,z) = to_cart_coords(pan_orbit.radius, theta_actual, pan_orbit.phi); 
+        let (l_x, l_y, l_z) = to_cart_coords(pan_orbit.radius + 10., theta_actual, pan_orbit.phi);
+        
+    
+        let mut look_at : Vec3 = Vec3::new(0.,0.,0.);
+        if pan_orbit.look_outward {
+            look_at = Vec3::new(l_x,l_y,l_z);
+        }
+    
+        transform.translation = Vec3::new(x, y, z);
+        transform.look_at(look_at, Vec3::Y);
+        transform.rotate_around(
+            Vec3::new(0.,0.,0.),
+            Quat::from_rotation_x(std::f32::consts::PI / 2.),
+        );
+    }
 }
 
 /// Pan the camera with middle mouse click, zoom with scroll wheel, orbit with right mouse click.
@@ -75,16 +135,7 @@ pub fn sphere_camera(
         scroll += ev.y;
     }
 
-    for (mut pan_orbit, mut transform) in set.p0().iter_mut() {
-        // if pan_orbit.look_outward {
-        //     return;
-        // }
-
-        // if pan_orbit.frozen {
-        //     net_motion=Vec2::new(0.,0.);
-        //     scroll = 0.;
-        // }
-    
+    for (mut pan_orbit, mut transform) in set.p0().iter_mut() {    
         let distance_from_cam_to_body = transform.translation.distance(Vec3::new(0.,0.,0.));
 
         scroll_scale *= distance_from_cam_to_body / 1000.;
@@ -112,29 +163,6 @@ pub fn sphere_camera(
         if radius < 6.095 {
             radius = 6.095;
         }
-
-        let mut theta_actual = theta;
-
-        if pan_orbit.locked {
-            theta_actual += pan_orbit.base_theta;
-        }
-
-        let (x,y,z) = to_cart_coords(radius, theta_actual, phi); 
-
-        let (l_x, l_y, l_z) = to_cart_coords(radius + 10., theta_actual, phi);
-        
-
-        let mut look_at : Vec3 = Vec3::new(0.,0.,0.);
-        if pan_orbit.look_outward {
-            look_at = Vec3::new(l_x,l_y,l_z);
-        }
-
-        transform.translation = Vec3::new(x, y, z);
-        transform.look_at(look_at, Vec3::Y);
-        transform.rotate_around(
-            Vec3::new(0.,0.,0.),
-            Quat::from_rotation_x(std::f32::consts::PI / 2.),
-        );
 
         pan_orbit.phi = phi;
         pan_orbit.radius = radius;

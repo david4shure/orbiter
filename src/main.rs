@@ -11,6 +11,7 @@ fn main() {
         .add_plugins(WorldInspectorPlugin::new())
         .add_systems(Update, rotate_earth)
         .add_systems(Update, sphere_camera::sphere_camera)
+        .add_systems(Update, sphere_camera::sync_spherical_cam_to_3d_cam)
         .add_systems(Update, lock_camera_to_rotation)
         .add_systems(Update, sync_base_theta_for_sphere_camera)
         .add_systems(Update, toggle_look_outward_camera)
@@ -105,17 +106,22 @@ fn toggle_look_outward_camera(
        for mut sphere_camera in query.iter_mut() {
             for (_,mut trans) in cam_q.iter_mut() {
                 sphere_camera.look_outward = !sphere_camera.look_outward;
-                let mut theta_actual = sphere_camera.theta;
-                if sphere_camera.locked {
-                    theta_actual -= sphere_camera.base_theta;
-                }
                 if sphere_camera.look_outward {
-                    // let (l_x, l_y, l_z) = sphere_camera::to_cart_coords(sphere_camera.radius+100., theta_actual, sphere_camera.phi);
-                    // trans.look_at(Vec3::new(l_x,l_y,l_z),Vec3::Y);
-                    // println!("Toggle Look Outward look_at({},{},{})",l_x,l_y,l_z);
+                    let (look_at, position) = sphere_camera::camera_coords_and_look_vector(&sphere_camera);
+                    
+                    trans.translation = position;
+                    trans.look_at(look_at, Vec3::Y);
+                    trans.rotate_around(
+                        Vec3::new(0.,0.,0.),
+                        Quat::from_rotation_x(std::f32::consts::PI / 2.),
+                    );
                 } else {
-                    // let look_at : Vec3 = Vec3::new(0.,0.,0.);
-                    // trans.look_at(look_at,Vec3::Y);
+                    let look_at : Vec3 = Vec3::new(0.,0.,0.);
+                    trans.look_at(look_at,Vec3::Y);
+                    trans.rotate_around(
+                        Vec3::new(0.,0.,0.),
+                        Quat::from_rotation_z(std::f32::consts::PI / 2.),
+                    );
                     // println!("Toggle Look Outward look_at({},{},{})",0.,0.,0.);
                 }
             }
