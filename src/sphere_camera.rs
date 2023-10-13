@@ -15,6 +15,7 @@ pub struct SphereCamera {
     pub phi: f32,
     pub locked: bool,
     pub look_outward: bool,
+    pub frozen: bool,
 }
 
 impl Default for SphereCamera {
@@ -24,9 +25,10 @@ impl Default for SphereCamera {
             body_idx: 0,
             radius: 3500.0,
             theta: 0.,
-            phi: 0.,
+            phi: std::f32::consts::PI / 2.,
             locked: false,
             look_outward: false,
+            frozen: false,
         }
     }
 }
@@ -74,6 +76,15 @@ pub fn sphere_camera(
     }
 
     for (mut pan_orbit, mut transform) in set.p0().iter_mut() {
+        // if pan_orbit.look_outward {
+        //     return;
+        // }
+
+        // if pan_orbit.frozen {
+        //     net_motion=Vec2::new(0.,0.);
+        //     scroll = 0.;
+        // }
+    
         let distance_from_cam_to_body = transform.translation.distance(Vec3::new(0.,0.,0.));
 
         scroll_scale *= distance_from_cam_to_body / 1000.;
@@ -98,10 +109,14 @@ pub fn sphere_camera(
         theta += d_theta;
         radius += d_radius;
 
+        if radius < 6.095 {
+            radius = 6.095;
+        }
+
         let mut theta_actual = theta;
 
         if pan_orbit.locked {
-            theta_actual -= pan_orbit.base_theta;
+            theta_actual += pan_orbit.base_theta;
         }
 
         let (x,y,z) = to_cart_coords(radius, theta_actual, phi); 
