@@ -180,8 +180,8 @@ pub fn update_sphere_camera_from_mouse_motion(
         phi = FLIP_PADDING;
     }
 
-    if radius < 6.095 {
-        radius = 6.095;
+    if radius < 50.142 {
+        radius = 50.142;
     }
 
     sphere_camera.phi = phi;

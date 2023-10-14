@@ -14,29 +14,35 @@ fn main() {
         .run();
 }
 
-fn setup(mut commands: Commands, ass: Res<AssetServer>) {
-    let earth_handle = ass.load("earth_hd_rotated.glb#Scene0");
-    let skybox_handle = ass.load("skybox2.glb#Scene0");
+fn setup(
+    mut commands: Commands, 
+    ass: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut standard_materials: ResMut<Assets<StandardMaterial>>,
+) {
+    //let earth_handle = ass.load("earth_hd_rotated.glb#Scene0");
+    let skybox_handle = ass.load("skybox1.glb#Scene0");
 
     // add earth
-    commands.spawn((
-        SceneBundle {
-            scene: earth_handle,
-            transform: Transform::from_xyz(0., 0., 0.),
+    commands.spawn((PbrBundle {
+        mesh: meshes.add(Mesh::from(shape::UVSphere{radius:50.,stacks:200,sectors:200})),
+        material: standard_materials.add(StandardMaterial{
+            base_color_texture: Some(ass.load("textures/8k_earth_daymap.png")),
+            emissive_texture: Some(ass.load("textures/8k_earth_nightmap.png")),
+            normal_map_texture: Some(ass.load("textures/8k_earth_normal_map.png")),
+            metallic_roughness_texture: Some(ass.load("textures/8k_earth_specular_map_inverted.png")),
+            perceptual_roughness: 1.0,
+            metallic: 0.0,
+            reflectance: 0.1,
+            emissive: Color::Rgba { red: 0.15, green: 0.15, blue: 0.15, alpha: 1.0 },
+            double_sided: false,
             ..default()
-        },
-        sphere_camera::EarthBody,
-    ));
+        }),
+        transform: Transform::from_xyz(0.0, 0.0, 0.0),
+        ..Default::default()
+    },sphere_camera::EarthBody));
 
     // Skybox
-    commands
-        .spawn(SceneBundle {
-            scene: skybox_handle,
-            transform: Transform::from_xyz(0., 0., 0.),
-            ..default()
-        })
-        .insert(Name::new("Sky"));
-
     commands.spawn(
 sphere_camera::SphereCamera {
             radius: 350.,
@@ -50,6 +56,26 @@ sphere_camera::SphereCamera {
             ..default()
         }
     );
+
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            color: Color::WHITE,
+            illuminance: 100000.,
+            shadows_enabled: false,
+            ..default()
+        },
+        transform: Transform::from_xyz(1000.0, -100.0, 0.0).with_rotation(Quat::from_rotation_x(std::f32::consts::PI/2.)),
+        ..default()
+    }).insert(Name::new("Sun Light"));
+
+    commands
+    .spawn(SceneBundle {
+        scene: skybox_handle,
+        transform: Transform::from_xyz(0., 0., 0.),
+        ..default()
+    })
+    .insert(Name::new("Sky"));
+
 }
 
 fn rotate_earth(mut query: Query<&mut Transform, With<sphere_camera::EarthBody>>, time: Res<Time>) {
