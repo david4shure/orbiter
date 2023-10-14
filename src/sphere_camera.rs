@@ -1,14 +1,27 @@
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 
+pub struct SphericalCameraPlugin;
+
+impl Plugin for SphericalCameraPlugin {
+    fn build(&self, app: &mut App) {
+        app
+        .add_systems(Update, update_sphere_camera_from_mouse_motion)
+        .add_systems(Update, sync_sphere_cam_to_3d_cam)
+        .add_systems(Update, lock_camera_to_rotation)
+        .add_systems(Update, sync_base_theta_for_sphere_camera)
+        .add_systems(Update, toggle_look_outward_camera)
+        .add_systems(Update, disable_mouse_scroll)
+        .register_type::<SphereCamera>();
+    }
+}
+
 #[derive(Component)]
 pub struct EarthBody;
 
 #[derive(Reflect, Component, Resource)]
 #[reflect(Component)]
 pub struct SphereCamera {
-    /// The "focus point" to orbit around. It is automatically updated when panning the camera
-    pub body_idx: i32,
     pub radius: f32,
     pub base_theta: f32,
     pub theta: f32,
@@ -22,7 +35,6 @@ impl Default for SphereCamera {
     fn default() -> Self {
         SphereCamera {
             base_theta: 0.,
-            body_idx: 0,
             radius: 3500.0,
             theta: 0.,
             phi: std::f32::consts::PI / 2.,
@@ -48,15 +60,12 @@ pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3,Vec3
 
     let mut theta_actual = theta;
 
-    if sphere_camera.locked {
-        theta_actual -= sphere_camera.base_theta;
+    if !sphere_camera.locked {
+        theta_actual += sphere_camera.base_theta;
     }
 
     let (x,y,z) = to_cart_coords(radius, theta_actual, phi); 
-
     let (l_x, l_y, l_z) = to_cart_coords(radius + 10., theta_actual, phi);
-
-    let mut look_at : Vec3 = Vec3::new(0.,0.,0.);
 
     (Vec3::new(l_x,l_y,l_z), Vec3::new(x,y,z))
 }
@@ -69,47 +78,49 @@ pub fn to_cart_coords(r: f32, theta: f32, phi: f32) -> (f32, f32, f32) {
     (x, y, z)
 }
 
-pub fn sync_spherical_cam_to_3d_cam(
-    mut query: Query<(&mut SphereCamera, &mut Transform)>,
+pub fn sync_sphere_cam_to_3d_cam(
+    mut sphere_camera_query: Query<&mut SphereCamera>,
+    mut camera_trans_query: Query<&mut Transform, With<Camera3d>>,
 ) {
-    for (mut pan_orbit, mut transform) in query.iter_mut() {
-        if pan_orbit.look_outward {
-            return;
-        }
+    let mut transform = match camera_trans_query.get_single_mut() {
+        Ok(transform) => transform,
+        Err(_) => return,
+    };
 
-        let mut theta_actual: f32 = pan_orbit.theta;
+    let sphere_camera = match sphere_camera_query.get_single_mut() {
+        Ok(sphere_camera) => sphere_camera,
+        Err(_) => return,
+    };
 
-        if pan_orbit.locked {
-            theta_actual += pan_orbit.base_theta;
-        }
-    
-        let (x,y,z) = to_cart_coords(pan_orbit.radius, theta_actual, pan_orbit.phi); 
-        let (l_x, l_y, l_z) = to_cart_coords(pan_orbit.radius + 10., theta_actual, pan_orbit.phi);
-        
-    
-        let mut look_at : Vec3 = Vec3::new(0.,0.,0.);
-        if pan_orbit.look_outward {
-            look_at = Vec3::new(l_x,l_y,l_z);
-        }
-    
-        transform.translation = Vec3::new(x, y, z);
-        transform.look_at(look_at, Vec3::Y);
-        transform.rotate_around(
-            Vec3::new(0.,0.,0.),
-            Quat::from_rotation_x(std::f32::consts::PI / 2.),
-        );
+    if sphere_camera.look_outward {
+        return;
     }
+
+    let theta_actual: f32 = sphere_camera.theta;
+
+    let (x,y,z) = to_cart_coords(sphere_camera.radius, theta_actual, sphere_camera.phi); 
+    let (l_x, l_y, l_z) = to_cart_coords(sphere_camera.radius + 10., theta_actual, sphere_camera.phi);
+    
+    let mut look_at : Vec3 = Vec3::new(0.,0.,0.);
+    if sphere_camera.look_outward {
+        look_at = Vec3::new(l_x,l_y,l_z);
+    }
+
+    transform.translation = Vec3::new(x, y, z);
+    transform.look_at(look_at, Vec3::Y);
+    transform.rotate_around(
+        Vec3::new(0.,0.,0.),
+        Quat::from_rotation_x(std::f32::consts::PI / 2.),
+    );
 }
 
 /// Pan the camera with middle mouse click, zoom with scroll wheel, orbit with right mouse click.
-pub fn sphere_camera(
+pub fn update_sphere_camera_from_mouse_motion(
     mut ev_motion: EventReader<MouseMotion>,
     mut ev_scroll: EventReader<MouseWheel>,
     input_mouse: Res<Input<MouseButton>>,
-    mut set: ParamSet<(
-        Query<(&mut SphereCamera, &mut Transform)>,
-        Query<(&EarthBody, &mut Transform)>,
-    )>,
+    mut sphere_camera_query: Query<&mut SphereCamera>,
+    mut camera_query: Query<&mut Transform, With<Camera3d>>,
     keys: Res<Input<KeyCode>>,
 ) {
     // change input mapping for orbit and panning here
@@ -135,37 +146,142 @@ pub fn sphere_camera(
         scroll += ev.y;
     }
 
-    for (mut pan_orbit, mut transform) in set.p0().iter_mut() {    
-        let distance_from_cam_to_body = transform.translation.distance(Vec3::new(0.,0.,0.));
+    let transform = match camera_query.get_single_mut() {
+        Ok(transform) => transform,
+        Err(_) => return,
+    };
 
-        scroll_scale *= distance_from_cam_to_body / 1000.;
+    let mut sphere_camera = match sphere_camera_query.get_single_mut() {
+        Ok(sphere_camera) => sphere_camera,
+        Err(_) => return,
+    };
 
-        let mut phi = pan_orbit.phi;
-        let mut theta = pan_orbit.theta;
-        let mut radius = pan_orbit.radius;
+    let distance_from_cam_to_body = transform.translation.distance(Vec3::new(0.,0.,0.));
 
-        const FLIP_PADDING: f32 = 0.0015;
+    scroll_scale *= distance_from_cam_to_body / 1000.;
 
-        let d_phi = rotate_scale * -net_motion.y / 500.;
-        let d_theta = rotate_scale * net_motion.x / 500.;
-        let d_radius = -(scroll_scale * scroll);
+    let mut phi = sphere_camera.phi;
+    let mut theta = sphere_camera.theta;
+    let mut radius = sphere_camera.radius;
 
-        if phi >= std::f32::consts::PI - FLIP_PADDING {
-            phi = std::f32::consts::PI - FLIP_PADDING;
-        } else if phi <= FLIP_PADDING {
-            phi = FLIP_PADDING;
-        }
+    const FLIP_PADDING: f32 = 0.0015;
 
-        phi += d_phi;
-        theta += d_theta;
-        radius += d_radius;
+    let d_phi = rotate_scale * -net_motion.y / 500.;
+    let d_theta = rotate_scale * net_motion.x / 500.;
+    let d_radius = -(scroll_scale * scroll);
 
-        if radius < 6.095 {
-            radius = 6.095;
-        }
+    phi += d_phi;
+    theta += d_theta;
+    radius += d_radius;
 
-        pan_orbit.phi = phi;
-        pan_orbit.radius = radius;
-        pan_orbit.theta = theta;
+    if phi >= std::f32::consts::PI - FLIP_PADDING {
+        phi = std::f32::consts::PI - FLIP_PADDING;
+    } else if phi <= FLIP_PADDING {
+        phi = FLIP_PADDING;
     }
+
+    if radius < 6.095 {
+        radius = 6.095;
+    }
+
+    sphere_camera.phi = phi;
+    sphere_camera.radius = radius;
+    sphere_camera.theta = theta;
+}
+
+pub fn disable_mouse_scroll(
+    mut sphere_cam_q: Query<&mut SphereCamera>,
+    keys: Res<Input<KeyCode>>,
+) {
+    if keys.just_pressed(KeyCode::F) {
+        for mut sphere_camera in sphere_cam_q.iter_mut() {
+            sphere_camera.frozen = !sphere_camera.frozen;
+        }
+    } 
+}
+
+pub fn sync_base_theta_for_sphere_camera(
+   mut earth_trans_q: Query<(&mut EarthBody, &mut Transform)>,
+   mut sphere_cam_q: Query<&mut SphereCamera>,
+) {
+   for (_, transform) in earth_trans_q.iter_mut() {
+       let euler = transform.rotation.to_euler(EulerRot::ZYX);
+
+       for mut pan_orbit in sphere_cam_q.iter_mut() {
+           pan_orbit.base_theta = euler.0;
+       }
+   }
+}
+
+pub fn toggle_look_outward_camera(
+   keys: Res<Input<KeyCode>>,
+   mut camera_query: Query<&mut Transform, With<Camera3d>>,
+   mut sphere_camera_query: Query<&mut SphereCamera>,
+) {
+   if keys.just_pressed(KeyCode::R) {
+        let mut sphere_camera = sphere_camera_query.single_mut();
+        let mut camera_trans = camera_query.single_mut();
+
+        sphere_camera.look_outward = !sphere_camera.look_outward;
+
+        let up = Vec3::Y;
+
+        if sphere_camera.look_outward {
+            let (look_at, position) = camera_coords_and_look_vector(&sphere_camera);
+
+            camera_trans.translation = position;
+            camera_trans.look_at(look_at, up);
+            camera_trans.rotate_around(
+                Vec3::new(0.,0.,0.),
+                Quat::from_rotation_x(std::f32::consts::PI / 2.),
+            );
+        } else {
+            let (_, position) = camera_coords_and_look_vector(&sphere_camera);
+
+            camera_trans.translation = position;
+            camera_trans.look_at(Vec3::new(0.,0.,0.),up);
+            camera_trans.rotate_around(
+                Vec3::new(0.,0.,0.),
+                Quat::from_rotation_z(std::f32::consts::PI / 2.),
+            );
+        }
+    }
+}
+
+pub fn lock_camera_to_rotation(
+   keys: Res<Input<KeyCode>>,
+   mut query: Query<&mut SphereCamera>,
+   mut camera_query: Query<Entity, With<Camera3d>>,
+   mut earth_query: Query<Entity, With<EarthBody>>,
+   mut commands: Commands,
+) {
+    let camera_entity = camera_query.get_single_mut().unwrap();
+    let earth_entity = earth_query.get_single_mut().unwrap();
+
+
+   for mut sphere_camera in query.iter_mut() {
+       if keys.just_pressed(KeyCode::L) {
+            if sphere_camera.locked { // locked -> unlocked
+                println!("locked -> unlocked");
+                commands.entity(earth_entity).remove_children(&[camera_entity]);
+                commands.entity(camera_entity).despawn();
+                commands.spawn(
+                    Camera3dBundle {
+                        transform: Transform::from_xyz(0., 20., 50.).looking_at(Vec3::ZERO, Vec3::Y),
+                        ..default()
+                    },
+                );
+            } else { // unlocked -> locked
+                println!("unlocked -> locked");
+                commands.entity(camera_entity).despawn();
+                let new_camera = commands.spawn(Camera3dBundle {
+                    transform: Transform::from_xyz(0., 20., 44.).looking_at(Vec3::ZERO, Vec3::Y),
+                    ..default()
+                }).id();
+                commands.entity(earth_entity).add_child(new_camera);
+            }
+
+            sphere_camera.locked = !sphere_camera.locked;
+       }
+   }
 }

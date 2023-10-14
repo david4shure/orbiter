@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use sphere_camera::SphericalCameraPlugin;
 
 mod sphere_camera;
 
@@ -8,33 +9,14 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
-        .add_plugins(WorldInspectorPlugin::new())
         .add_systems(Update, rotate_earth)
-        .add_systems(Update, sphere_camera::sphere_camera)
-        .add_systems(Update, sphere_camera::sync_spherical_cam_to_3d_cam)
-        .add_systems(Update, lock_camera_to_rotation)
-        .add_systems(Update, sync_base_theta_for_sphere_camera)
-        .add_systems(Update, toggle_look_outward_camera)
-        .add_systems(Update, disable_mouse_scroll)
-        .register_type::<sphere_camera::SphereCamera>()
+        .add_plugins((WorldInspectorPlugin::new(),SphericalCameraPlugin))
         .run();
 }
 
 fn setup(mut commands: Commands, ass: Res<AssetServer>) {
     let earth_handle = ass.load("earth_hd_rotated.glb#Scene0");
-    let skybox_handle = ass.load("skybox1.glb#Scene0");
-
-    // camera
-    // commands.spawn((
-    //    Camera3dBundle {
-    //        transform: Transform::from_xyz(0., 20., 44.).looking_at(Vec3::ZERO, Vec3::Y),
-    //        ..default()
-    //    },
-    //    sphere_camera::SphereCamera {
-    //        radius: 350.,
-    //        ..Default::default()
-    //    },
-    // ));
+    let skybox_handle = ass.load("skybox2.glb#Scene0");
 
     // add earth
     commands.spawn((
@@ -44,18 +26,7 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
             ..default()
         },
         sphere_camera::EarthBody,
-    )).with_children(|parent| {
-        parent.spawn((
-            Camera3dBundle {
-                transform: Transform::from_xyz(0., 20., 44.).looking_at(Vec3::ZERO, Vec3::Y),
-                ..default()
-            },
-            sphere_camera::SphereCamera {
-                radius: 350.,
-                ..Default::default()
-            }
-        ));
-    });
+    ));
 
     // Skybox
     commands
@@ -65,77 +36,24 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
             ..default()
         })
         .insert(Name::new("Sky"));
+
+    commands.spawn(
+sphere_camera::SphereCamera {
+            radius: 350.,
+            ..Default::default()
+        },
+    );
+
+    commands.spawn(
+        Camera3dBundle {
+            transform: Transform::from_xyz(0., 20., 44.).looking_at(Vec3::ZERO, Vec3::Y),
+            ..default()
+        }
+    );
 }
 
 fn rotate_earth(mut query: Query<&mut Transform, With<sphere_camera::EarthBody>>, time: Res<Time>) {
     for mut transform in query.iter_mut() {
         transform.rotate_z(time.delta_seconds() * 0.4);
     }
-}
-
-fn disable_mouse_scroll(
-    mut sphere_cam_q: Query<&mut sphere_camera::SphereCamera>,
-    keys: Res<Input<KeyCode>>,
-) {
-    if keys.just_pressed(KeyCode::M) {
-        for mut sphere_camera in sphere_cam_q.iter_mut() {
-            sphere_camera.frozen = !sphere_camera.frozen;
-        }
-    } 
-}
-
-fn sync_base_theta_for_sphere_camera(
-   mut earth_trans_q: Query<(&mut sphere_camera::EarthBody, &mut Transform)>,
-   mut sphere_cam_q: Query<&mut sphere_camera::SphereCamera>,
-) {
-   for (_, transform) in earth_trans_q.iter_mut() {
-       let euler = transform.rotation.to_euler(EulerRot::ZYX);
-
-       for mut pan_orbit in sphere_cam_q.iter_mut() {
-           pan_orbit.base_theta = euler.0;
-       }
-   }
-}
-
-fn toggle_look_outward_camera(
-   keys: Res<Input<KeyCode>>,
-   mut query: Query<&mut sphere_camera::SphereCamera>,
-   mut cam_q: Query<(&mut Camera3d, &mut Transform)>,
-) {
-   if keys.just_pressed(KeyCode::R) {
-       for mut sphere_camera in query.iter_mut() {
-            for (_,mut trans) in cam_q.iter_mut() {
-                sphere_camera.look_outward = !sphere_camera.look_outward;
-                if sphere_camera.look_outward {
-                    let (look_at, position) = sphere_camera::camera_coords_and_look_vector(&sphere_camera);
-                    
-                    trans.translation = position;
-                    trans.look_at(look_at, Vec3::Y);
-                    trans.rotate_around(
-                        Vec3::new(0.,0.,0.),
-                        Quat::from_rotation_x(std::f32::consts::PI / 2.),
-                    );
-                } else {
-                    let look_at : Vec3 = Vec3::new(0.,0.,0.);
-                    trans.look_at(look_at,Vec3::Y);
-                    trans.rotate_around(
-                        Vec3::new(0.,0.,0.),
-                        Quat::from_rotation_z(std::f32::consts::PI / 2.),
-                    );
-                    // println!("Toggle Look Outward look_at({},{},{})",0.,0.,0.);
-                }
-            }
-        }
-    }
-}
-
-fn lock_camera_to_rotation(
-   keys: Res<Input<KeyCode>>,
-   mut query: Query<&mut sphere_camera::SphereCamera>,
-) {
-   for mut sphere_camera in query.iter_mut() {
-       if keys.just_pressed(KeyCode::L) {
-           sphere_camera.locked = !sphere_camera.locked;
-       }
-   }
 }
