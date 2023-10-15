@@ -1,8 +1,10 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use sphere_camera::SphericalCameraPlugin;
+use topocentric_camera::TopoCentricCameraPlugin;
 
 mod sphere_camera;
+mod topocentric_camera;
 
 fn main() {
     App::new()
@@ -10,6 +12,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
         .add_systems(Update, rotate_earth)
+        .add_plugins(TopoCentricCameraPlugin)
         .add_plugins((WorldInspectorPlugin::new(),SphericalCameraPlugin))
         .run();
 }
