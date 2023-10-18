@@ -17,6 +17,9 @@ impl Plugin for SphericalCameraPlugin {
 }
 
 #[derive(Component)]
+pub struct FixMarker;
+
+#[derive(Component)]
 pub struct EarthBody;
 
 #[derive(Reflect, Component, Resource)]
@@ -29,6 +32,7 @@ pub struct SphereCamera {
     pub locked: bool,
     pub look_outward: bool,
     pub frozen: bool,
+    pub up: Vec3,
 }
 
 impl Default for SphereCamera {
@@ -41,6 +45,7 @@ impl Default for SphereCamera {
             locked: false,
             look_outward: false,
             frozen: false,
+            up: Vec3::new(0.,1.,0.),
         }
     }
 }
@@ -217,33 +222,55 @@ pub fn toggle_look_outward_camera(
    keys: Res<Input<KeyCode>>,
    mut camera_query: Query<&mut Transform, With<Camera3d>>,
    mut sphere_camera_query: Query<&mut SphereCamera>,
+   mut camera_entity_query: Query<Entity, With<Camera3d>>,
+   mut earth_entity_query: Query<Entity, With<EarthBody>>,
+   mut commands: Commands,
+   mut meshes: ResMut<Assets<Mesh>>,
+   mut materials: ResMut<Assets<StandardMaterial>>,
+   mut fix_marker_query: Query<Entity, With<FixMarker>>,
 ) {
    if keys.just_pressed(KeyCode::R) {
         let mut sphere_camera = sphere_camera_query.single_mut();
         let mut camera_trans = camera_query.single_mut();
 
+        let camera_entity = camera_entity_query.get_single_mut().unwrap();
+        let earth_entity = earth_entity_query.get_single_mut().unwrap();
+
         sphere_camera.look_outward = !sphere_camera.look_outward;
 
-        let up = Vec3::Y;
-
         if sphere_camera.look_outward {
-            let (look_at, position) = camera_coords_and_look_vector(&sphere_camera);
+           let (look_at, position) = camera_coords_and_look_vector(&sphere_camera);
+           sphere_camera.up = position;
 
-            camera_trans.translation = position;
-            camera_trans.look_at(look_at, up);
-            camera_trans.rotate_around(
-                Vec3::new(0.,0.,0.),
-                Quat::from_rotation_x(std::f32::consts::PI / 2.),
-            );
-        } else {
+           commands.entity(camera_entity).despawn();
+            let new_camera = commands.spawn(Camera3dBundle {
+                transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::ZERO, position),
+                    ..default()
+            }).id();
+            let trans = Transform::IDENTITY.with_translation(position).looking_at(Vec3::new(100.,0.,0.),sphere_camera.up);
+            let cube = commands.spawn((PbrBundle {
+                mesh: meshes.add(Mesh::from(shape::Cube { size: 4.0 })),
+                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                transform: trans,
+                ..default()
+            },FixMarker)).id();
+
+            commands.entity(earth_entity).add_child(cube);
+            commands.entity(cube).add_child(new_camera);
+       } else {
             let (_, position) = camera_coords_and_look_vector(&sphere_camera);
 
-            camera_trans.translation = position;
-            camera_trans.look_at(Vec3::new(0.,0.,0.),up);
-            camera_trans.rotate_around(
-                Vec3::new(0.,0.,0.),
-                Quat::from_rotation_z(std::f32::consts::PI / 2.),
-            );
+            let fix_marker_cube = fix_marker_query.get_single_mut().unwrap();
+
+           commands.entity(earth_entity).despawn_descendants();
+
+            let new_camera = commands.spawn(Camera3dBundle {
+                transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::ZERO, sphere_camera.up),
+                    ..default()
+            }).id();
+
+            commands.entity(fix_marker_cube).despawn_recursive();
+            commands.entity(earth_entity).add_child(new_camera);
         }
     }
 }

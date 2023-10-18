@@ -56,9 +56,18 @@ pub fn topo_free_look(
     if keys.pressed(KeyCode::ShiftLeft) {
         scale = 0.3;
     }
+    // ZYX
+    // ZXY
+    // XYZ
+    // XZY
+    // YXZ
+    // YZX
 
-    camera_transform.rotate_local_y(-net_motion.x / 200.);
-    camera_transform.rotate_local_x(-net_motion.y / 200.);
+
+    // initial rotation for placement cube. Z accordining phi, X according to theta.
+    //let quat = Quat::from_euler(EulerRot::ZXY, 0., net_motion.y/200., -net_motion.x/200.);
+
+    //camera_transform.rotate(quat);
 
     if keys.pressed(KeyCode::Q) {
         camera_transform.rotate_local_z(time.delta_seconds() * scale);
