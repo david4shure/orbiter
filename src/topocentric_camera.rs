@@ -69,6 +69,20 @@ pub fn topo_free_look(
 
     //camera_transform.rotate(quat);
 
+    if keys.pressed(KeyCode::A) {
+        camera_transform.rotate_y(time.delta_seconds() * scale);
+    }
+    if keys.pressed(KeyCode::D) {
+        camera_transform.rotate_y(-time.delta_seconds() * scale);
+    }
+
+    if keys.pressed(KeyCode::W) {
+        camera_transform.rotate_local_x(time.delta_seconds() * scale);
+    }
+    if keys.pressed(KeyCode::S) {
+        camera_transform.rotate_local_x(-time.delta_seconds() * scale);
+    }
+
     if keys.pressed(KeyCode::Q) {
         camera_transform.rotate_local_z(time.delta_seconds() * scale);
     }

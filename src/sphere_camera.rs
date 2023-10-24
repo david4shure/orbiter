@@ -239,18 +239,23 @@ pub fn toggle_look_outward_camera(
         sphere_camera.look_outward = !sphere_camera.look_outward;
 
         if sphere_camera.look_outward {
+            let (x,y,z) = to_cart_coords(sphere_camera.radius, sphere_camera.theta, sphere_camera.phi);
+            let (nx,ny,nz) = to_cart_coords(sphere_camera.radius, sphere_camera.theta, sphere_camera.phi - 0.001);
+            let (ux, uy, uz) = to_cart_coords(sphere_camera.radius+10., sphere_camera.theta, sphere_camera.phi);
+
            let (look_at, position) = camera_coords_and_look_vector(&sphere_camera);
            sphere_camera.up = position;
 
            commands.entity(camera_entity).despawn();
             let new_camera = commands.spawn(Camera3dBundle {
-                transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::ZERO, position),
+                transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::X, Vec3::Y),
                     ..default()
             }).id();
-            let trans = Transform::IDENTITY.with_translation(position).looking_at(Vec3::new(100.,0.,0.),sphere_camera.up);
+
+            let trans = Transform::IDENTITY.with_translation(Vec3::new(x,y,z)).looking_at(Vec3::new(nx, ny, nz),Vec3::new(ux,uy,uz));
             let cube = commands.spawn((PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Cube { size: 4.0 })),
-                material: materials.add(Color::rgb(0.8, 0.7, 0.6).into()),
+                mesh: meshes.add(Mesh::from(shape::Capsule { radius: 3.0,rings: 10 as usize, depth: 3., ..default() })),
+                material: materials.add(Color::rgb(1., 1., 1.).into()),
                 transform: trans,
                 ..default()
             },FixMarker)).id();
