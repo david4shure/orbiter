@@ -34,11 +34,7 @@ pub fn topo_free_look(
     //window.cursor.visible = false;
 
     // Games typically only have one window (the primary window)
-    if let Some(position) = q_windows.single().cursor_position() {
-        println!("Cursor is inside the primary window, at {:?}", position);
-    } else {
-        println!("Cursor is not in the game window.");
-    }
+    let position = q_windows.single().cursor_position();
 
     let mut camera_transform: Mut<'_, Transform> = match camera_trans_query.get_single_mut() {
         Ok(camera_transform) => camera_transform,

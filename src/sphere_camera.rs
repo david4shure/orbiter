@@ -63,13 +63,7 @@ pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3,Vec3
         phi = FLIP_PADDING;
     }
 
-    let mut theta_actual = theta;
-
-    if !sphere_camera.locked {
-        theta_actual += sphere_camera.base_theta;
-    }
-
-    let pos = to_cart_coords(radius, theta_actual, phi);
+    let pos = to_cart_coords(radius, theta, phi);
     let up = to_cart_coords(radius+10., theta, phi);
     let north = to_cart_coords(radius, theta, phi-0.001);
 
@@ -102,10 +96,8 @@ pub fn sync_sphere_cam_to_3d_cam(
         return;
     }
 
-    let theta_actual: f32 = sphere_camera.theta;
-
-    let pos = to_cart_coords(sphere_camera.radius, theta_actual, sphere_camera.phi); 
-    let look = to_cart_coords(sphere_camera.radius + 10., theta_actual, sphere_camera.phi);
+    let pos = to_cart_coords(sphere_camera.radius, sphere_camera.theta, sphere_camera.phi); 
+    let look = to_cart_coords(sphere_camera.radius + 10., sphere_camera.theta, sphere_camera.phi);
     
     let mut look_at : Vec3 = Vec3::new(0.,0.,0.);
     if sphere_camera.look_outward {
@@ -241,7 +233,6 @@ pub fn toggle_look_outward_camera(
 
         if sphere_camera.look_outward {
            let (pos, up, north) = camera_coords_and_look_vector(&sphere_camera);
-           sphere_camera.up = pos;
 
            commands.entity(camera_entity).despawn();
             let new_camera = commands.spawn(Camera3dBundle {
@@ -265,7 +256,7 @@ pub fn toggle_look_outward_camera(
            commands.entity(earth_entity).despawn_descendants();
 
             let new_camera = commands.spawn(Camera3dBundle {
-                transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::ZERO, sphere_camera.up),
+                transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::ZERO, Vec3::Y),
                     ..default()
             }).id();
 
