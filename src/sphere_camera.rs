@@ -50,7 +50,7 @@ impl Default for SphereCamera {
     }
 }
 
-pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3,Vec3) {
+pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3,Vec3,Vec3) {
     let mut phi = sphere_camera.phi;
     let theta = sphere_camera.theta;
     let radius = sphere_camera.radius;
@@ -69,18 +69,19 @@ pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3,Vec3
         theta_actual += sphere_camera.base_theta;
     }
 
-    let (x,y,z) = to_cart_coords(radius, theta_actual, phi); 
-    let (l_x, l_y, l_z) = to_cart_coords(radius + 10., theta_actual, phi);
+    let pos = to_cart_coords(radius, theta_actual, phi);
+    let up = to_cart_coords(radius+10., theta, phi);
+    let north = to_cart_coords(radius, theta, phi-0.001);
 
-    (Vec3::new(l_x,l_y,l_z), Vec3::new(x,y,z))
+    (pos,up,north)
 }
 
-pub fn to_cart_coords(r: f32, theta: f32, phi: f32) -> (f32, f32, f32) {
+pub fn to_cart_coords(r: f32, theta: f32, phi: f32) -> Vec3 {
     let x = r * phi.sin() * theta.cos();
     let y = r * phi.cos();
     let z = r * phi.sin() * theta.sin();
 
-    (x, y, z)
+    Vec3::new(x, y, z)
 }
 
 pub fn sync_sphere_cam_to_3d_cam(
@@ -103,15 +104,15 @@ pub fn sync_sphere_cam_to_3d_cam(
 
     let theta_actual: f32 = sphere_camera.theta;
 
-    let (x,y,z) = to_cart_coords(sphere_camera.radius, theta_actual, sphere_camera.phi); 
-    let (l_x, l_y, l_z) = to_cart_coords(sphere_camera.radius + 10., theta_actual, sphere_camera.phi);
+    let pos = to_cart_coords(sphere_camera.radius, theta_actual, sphere_camera.phi); 
+    let look = to_cart_coords(sphere_camera.radius + 10., theta_actual, sphere_camera.phi);
     
     let mut look_at : Vec3 = Vec3::new(0.,0.,0.);
     if sphere_camera.look_outward {
-        look_at = Vec3::new(l_x,l_y,l_z);
+        look_at = look;
     }
 
-    transform.translation = Vec3::new(x, y, z);
+    transform.translation = pos;
     transform.look_at(look_at, Vec3::Y);
     transform.rotate_around(
         Vec3::new(0.,0.,0.),
@@ -239,12 +240,8 @@ pub fn toggle_look_outward_camera(
         sphere_camera.look_outward = !sphere_camera.look_outward;
 
         if sphere_camera.look_outward {
-            let (x,y,z) = to_cart_coords(sphere_camera.radius, sphere_camera.theta, sphere_camera.phi);
-            let (nx,ny,nz) = to_cart_coords(sphere_camera.radius, sphere_camera.theta, sphere_camera.phi - 0.001);
-            let (ux, uy, uz) = to_cart_coords(sphere_camera.radius+10., sphere_camera.theta, sphere_camera.phi);
-
-           let (look_at, position) = camera_coords_and_look_vector(&sphere_camera);
-           sphere_camera.up = position;
+           let (pos, up, north) = camera_coords_and_look_vector(&sphere_camera);
+           sphere_camera.up = pos;
 
            commands.entity(camera_entity).despawn();
             let new_camera = commands.spawn(Camera3dBundle {
@@ -252,7 +249,7 @@ pub fn toggle_look_outward_camera(
                     ..default()
             }).id();
 
-            let trans = Transform::IDENTITY.with_translation(Vec3::new(x,y,z)).looking_at(Vec3::new(nx, ny, nz),Vec3::new(ux,uy,uz));
+            let trans = Transform::IDENTITY.with_translation(pos).looking_at(north,up);
             let cube = commands.spawn((PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Capsule { radius: 3.0,rings: 10 as usize, depth: 3., ..default() })),
                 material: materials.add(Color::rgb(1., 1., 1.).into()),
@@ -263,8 +260,6 @@ pub fn toggle_look_outward_camera(
             commands.entity(earth_entity).add_child(cube);
             commands.entity(cube).add_child(new_camera);
        } else {
-            let (_, position) = camera_coords_and_look_vector(&sphere_camera);
-
             let fix_marker_cube = fix_marker_query.get_single_mut().unwrap();
 
            commands.entity(earth_entity).despawn_descendants();
