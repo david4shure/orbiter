@@ -108,7 +108,7 @@ pub fn sync_sphere_cam_to_3d_cam(
     transform.look_at(look_at, Vec3::Y);
     transform.rotate_around(
         Vec3::new(0.,0.,0.),
-        Quat::from_rotation_x(std::f32::consts::PI / 2.),
+        Quat::from_rotation_x(0.),
     );
 }
 
@@ -178,8 +178,8 @@ pub fn update_sphere_camera_from_mouse_motion(
         phi = FLIP_PADDING;
     }
 
-    if radius < 50.142 {
-        radius = 50.142;
+    if radius < 500.1 {
+        radius = 500.1;
     }
 
     sphere_camera.phi = phi;
@@ -222,9 +222,10 @@ pub fn toggle_look_outward_camera(
    mut materials: ResMut<Assets<StandardMaterial>>,
    mut fix_marker_query: Query<Entity, With<FixMarker>>,
 ) {
-   if keys.just_pressed(KeyCode::R) {
-        let mut sphere_camera = sphere_camera_query.single_mut();
-        let mut camera_trans = camera_query.single_mut();
+    let mut sphere_camera = sphere_camera_query.single_mut();
+    let mut camera_trans = camera_query.single_mut();
+
+   if keys.just_pressed(KeyCode::R) && sphere_camera.locked {
 
         let camera_entity = camera_entity_query.get_single_mut().unwrap();
         let earth_entity = earth_entity_query.get_single_mut().unwrap();
@@ -236,11 +237,11 @@ pub fn toggle_look_outward_camera(
 
            commands.entity(camera_entity).despawn();
             let new_camera = commands.spawn(Camera3dBundle {
-                transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::X, Vec3::Y),
+                transform: Transform::from_xyz(0., 0., 0.).looking_at(-Vec3::Z, Vec3::Y),
                     ..default()
             }).id();
 
-            let trans = Transform::IDENTITY.with_translation(pos).looking_at(north,up);
+            let trans: Transform = Transform::IDENTITY.with_translation(pos).looking_at(north,up);
             let cube = commands.spawn((PbrBundle {
                 mesh: meshes.add(Mesh::from(shape::Capsule { radius: 3.0,rings: 10 as usize, depth: 3., ..default() })),
                 material: materials.add(Color::rgb(1., 1., 1.).into()),
@@ -253,14 +254,13 @@ pub fn toggle_look_outward_camera(
        } else {
             let fix_marker_cube = fix_marker_query.get_single_mut().unwrap();
 
-           commands.entity(earth_entity).despawn_descendants();
+           commands.entity(fix_marker_cube).despawn_recursive();
 
             let new_camera = commands.spawn(Camera3dBundle {
                 transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::ZERO, Vec3::Y),
                     ..default()
             }).id();
 
-            commands.entity(fix_marker_cube).despawn_recursive();
             commands.entity(earth_entity).add_child(new_camera);
         }
     }
@@ -278,7 +278,7 @@ pub fn lock_camera_to_rotation(
 
 
    for mut sphere_camera in query.iter_mut() {
-       if keys.just_pressed(KeyCode::L) {
+       if keys.just_pressed(KeyCode::L) && !sphere_camera.look_outward {
             if sphere_camera.locked { // locked -> unlocked
                 println!("locked -> unlocked");
                 commands.entity(earth_entity).remove_children(&[camera_entity]);
