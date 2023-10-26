@@ -5,14 +5,13 @@ pub struct SphericalCameraPlugin;
 
 impl Plugin for SphericalCameraPlugin {
     fn build(&self, app: &mut App) {
-        app
-        .add_systems(Update, update_sphere_camera_from_mouse_motion)
-        .add_systems(Update, sync_sphere_cam_to_3d_cam)
-        .add_systems(Update, lock_camera_to_rotation)
-        .add_systems(Update, sync_base_theta_for_sphere_camera)
-        .add_systems(Update, toggle_look_outward_camera)
-        .add_systems(Update, disable_mouse_scroll)
-        .register_type::<SphereCamera>();
+        app.add_systems(Update, update_sphere_camera_from_mouse_motion)
+            .add_systems(Update, sync_sphere_cam_to_3d_cam)
+            .add_systems(Update, lock_camera_to_rotation)
+            .add_systems(Update, sync_base_theta_for_sphere_camera)
+            .add_systems(Update, toggle_look_outward_camera)
+            .add_systems(Update, disable_mouse_scroll)
+            .register_type::<SphereCamera>();
     }
 }
 
@@ -45,12 +44,12 @@ impl Default for SphereCamera {
             locked: false,
             look_outward: false,
             frozen: false,
-            up: Vec3::new(0.,1.,0.),
+            up: Vec3::new(0., 1., 0.),
         }
     }
 }
 
-pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3,Vec3,Vec3) {
+pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3, Vec3, Vec3) {
     let mut phi = sphere_camera.phi;
     let theta = sphere_camera.theta;
     let radius = sphere_camera.radius;
@@ -64,10 +63,10 @@ pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3,Vec3
     }
 
     let pos = to_cart_coords(radius, theta, phi);
-    let up = to_cart_coords(radius+10., theta, phi);
-    let north = to_cart_coords(radius, theta, phi-0.001);
+    let up = to_cart_coords(radius + 10., theta, phi);
+    let north = to_cart_coords(radius, theta, phi - 0.001);
 
-    (pos,up,north)
+    (pos, up, north)
 }
 
 pub fn to_cart_coords(r: f32, theta: f32, phi: f32) -> Vec3 {
@@ -96,20 +95,21 @@ pub fn sync_sphere_cam_to_3d_cam(
         return;
     }
 
-    let pos = to_cart_coords(sphere_camera.radius, sphere_camera.theta, sphere_camera.phi); 
-    let look = to_cart_coords(sphere_camera.radius + 10., sphere_camera.theta, sphere_camera.phi);
-    
-    let mut look_at : Vec3 = Vec3::new(0.,0.,0.);
+    let pos = to_cart_coords(sphere_camera.radius, sphere_camera.theta, sphere_camera.phi);
+    let look = to_cart_coords(
+        sphere_camera.radius + 10.,
+        sphere_camera.theta,
+        sphere_camera.phi,
+    );
+
+    let mut look_at: Vec3 = Vec3::new(0., 0., 0.);
     if sphere_camera.look_outward {
         look_at = look;
     }
 
     transform.translation = pos;
     transform.look_at(look_at, Vec3::Y);
-    transform.rotate_around(
-        Vec3::new(0.,0.,0.),
-        Quat::from_rotation_x(0.),
-    );
+    transform.rotate_around(Vec3::new(0., 0., 0.), Quat::from_rotation_x(0.));
 }
 
 /// Pan the camera with middle mouse click, zoom with scroll wheel, orbit with right mouse click.
@@ -130,7 +130,7 @@ pub fn update_sphere_camera_from_mouse_motion(
     let mut rotate_scale = 1.0;
 
     if keys.pressed(KeyCode::ShiftLeft) {
-        scroll_scale = 1.;
+        scroll_scale = 5.;
         rotate_scale = 0.1;
     }
 
@@ -154,7 +154,7 @@ pub fn update_sphere_camera_from_mouse_motion(
         Err(_) => return,
     };
 
-    let distance_from_cam_to_body = transform.translation.distance(Vec3::new(0.,0.,0.));
+    let distance_from_cam_to_body = transform.translation.distance(Vec3::new(0., 0., 0.));
 
     scroll_scale *= distance_from_cam_to_body / 1000.;
 
@@ -187,79 +187,130 @@ pub fn update_sphere_camera_from_mouse_motion(
     sphere_camera.theta = theta;
 }
 
-pub fn disable_mouse_scroll(
-    mut sphere_cam_q: Query<&mut SphereCamera>,
-    keys: Res<Input<KeyCode>>,
-) {
+pub fn disable_mouse_scroll(mut sphere_cam_q: Query<&mut SphereCamera>, keys: Res<Input<KeyCode>>) {
     if keys.just_pressed(KeyCode::F) {
         for mut sphere_camera in sphere_cam_q.iter_mut() {
             sphere_camera.frozen = !sphere_camera.frozen;
         }
-    } 
+    }
 }
 
 pub fn sync_base_theta_for_sphere_camera(
-   mut earth_trans_q: Query<(&mut EarthBody, &mut Transform)>,
-   mut sphere_cam_q: Query<&mut SphereCamera>,
+    mut earth_trans_q: Query<(&mut EarthBody, &mut Transform)>,
+    mut sphere_cam_q: Query<&mut SphereCamera>,
 ) {
-   for (_, transform) in earth_trans_q.iter_mut() {
-       let euler = transform.rotation.to_euler(EulerRot::ZYX);
+    for (_, transform) in earth_trans_q.iter_mut() {
+        let euler = transform.rotation.to_euler(EulerRot::ZYX);
 
-       for mut pan_orbit in sphere_cam_q.iter_mut() {
-           pan_orbit.base_theta = euler.0;
-       }
-   }
+        for mut pan_orbit in sphere_cam_q.iter_mut() {
+            pan_orbit.base_theta = euler.0;
+        }
+    }
 }
 
 pub fn toggle_look_outward_camera(
-   keys: Res<Input<KeyCode>>,
-   mut camera_query: Query<&mut Transform, With<Camera3d>>,
-   mut sphere_camera_query: Query<&mut SphereCamera>,
-   mut camera_entity_query: Query<Entity, With<Camera3d>>,
-   mut earth_entity_query: Query<Entity, With<EarthBody>>,
-   mut commands: Commands,
-   mut meshes: ResMut<Assets<Mesh>>,
-   mut materials: ResMut<Assets<StandardMaterial>>,
-   mut fix_marker_query: Query<Entity, With<FixMarker>>,
+    keys: Res<Input<KeyCode>>,
+    mut sphere_camera_query: Query<&mut SphereCamera>,
+    mut camera_entity_query: Query<Entity, With<Camera3d>>,
+    mut earth_entity_query: Query<Entity, With<EarthBody>>,
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut fix_marker_query: Query<Entity, With<FixMarker>>,
+    ass: Res<AssetServer>,
 ) {
     let mut sphere_camera = sphere_camera_query.single_mut();
-    let mut camera_trans = camera_query.single_mut();
 
-   if keys.just_pressed(KeyCode::R) && sphere_camera.locked {
-
+    if keys.just_pressed(KeyCode::R) && sphere_camera.locked {
         let camera_entity = camera_entity_query.get_single_mut().unwrap();
         let earth_entity = earth_entity_query.get_single_mut().unwrap();
 
         sphere_camera.look_outward = !sphere_camera.look_outward;
 
         if sphere_camera.look_outward {
-           let (pos, up, north) = camera_coords_and_look_vector(&sphere_camera);
+            let (pos, up, north) = camera_coords_and_look_vector(&sphere_camera);
 
-           commands.entity(camera_entity).despawn();
-            let new_camera = commands.spawn(Camera3dBundle {
-                transform: Transform::from_xyz(0., 0., 0.).looking_at(-Vec3::Z, Vec3::Y),
+            commands.entity(camera_entity).despawn();
+            let new_camera = commands
+                .spawn(Camera3dBundle {
+                    transform: Transform::from_xyz(0., 0., 0.).looking_at(-Vec3::Z, Vec3::Y),
                     ..default()
-            }).id();
+                })
+                .id();
 
-            let trans: Transform = Transform::IDENTITY.with_translation(pos).looking_at(north,up);
-            let cube = commands.spawn((PbrBundle {
-                mesh: meshes.add(Mesh::from(shape::Capsule { radius: 3.0,rings: 10 as usize, depth: 3., ..default() })),
-                material: materials.add(Color::rgb(1., 1., 1.).into()),
-                transform: trans,
-                ..default()
-            },FixMarker)).id();
+            let trans: Transform = Transform::IDENTITY
+                .with_translation(pos)
+                .looking_at(north, up);
+            let cube = commands
+                .spawn((
+                    PbrBundle {
+                        mesh: meshes.add(Mesh::from(shape::Capsule {
+                            radius: 3.0,
+                            rings: 10 as usize,
+                            depth: 3.,
+                            ..default()
+                        })),
+                        material: materials.add(Color::rgb(1., 1., 1.).into()),
+                        transform: trans,
+                        ..default()
+                    },
+                    FixMarker,
+                ))
+                .id();
+
+            let north_handle: Handle<Scene> = ass.load("north.glb#Scene0");
+            let south_handle: Handle<Scene> = ass.load("south.glb#Scene0");
+            let east_handle: Handle<Scene> = ass.load("east.glb#Scene0");
+            let west_handle: Handle<Scene> = ass.load("west.glb#Scene0");
+
+            let north = commands
+                .spawn(SceneBundle {
+                    scene: north_handle,
+                    transform: Transform::from_xyz(0.0, -0.53, -30.0),
+                    ..Default::default()
+                })
+                .id();
+            let south = commands
+                .spawn(SceneBundle {
+                    scene: south_handle,
+                    transform: Transform::from_xyz(0.0, -0.53, 30.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+                    ..Default::default()
+                })
+                .id();
+
+            let east = commands
+                .spawn(SceneBundle {
+                    scene: east_handle,
+                    transform: Transform::from_xyz(30.0, -0.53, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+                    ..Default::default()
+                })
+                .id();
+
+            let west = commands
+                .spawn(SceneBundle {
+                    scene: west_handle,
+                    transform: Transform::from_xyz(-30.0, -0.53, 0.0),
+                    ..Default::default()
+                })
+                .id();
 
             commands.entity(earth_entity).add_child(cube);
             commands.entity(cube).add_child(new_camera);
-       } else {
+            commands.entity(cube).add_child(north);
+            commands.entity(cube).add_child(south);
+            commands.entity(cube).add_child(east);
+            commands.entity(cube).add_child(west);
+        } else {
             let fix_marker_cube = fix_marker_query.get_single_mut().unwrap();
 
-           commands.entity(fix_marker_cube).despawn_recursive();
+            commands.entity(fix_marker_cube).despawn_recursive();
 
-            let new_camera = commands.spawn(Camera3dBundle {
-                transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::ZERO, Vec3::Y),
+            let new_camera = commands
+                .spawn(Camera3dBundle {
+                    transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::ZERO, Vec3::Y),
                     ..default()
-            }).id();
+                })
+                .id();
 
             commands.entity(earth_entity).add_child(new_camera);
         }
@@ -267,39 +318,43 @@ pub fn toggle_look_outward_camera(
 }
 
 pub fn lock_camera_to_rotation(
-   keys: Res<Input<KeyCode>>,
-   mut query: Query<&mut SphereCamera>,
-   mut camera_query: Query<Entity, With<Camera3d>>,
-   mut earth_query: Query<Entity, With<EarthBody>>,
-   mut commands: Commands,
+    keys: Res<Input<KeyCode>>,
+    mut query: Query<&mut SphereCamera>,
+    mut camera_query: Query<Entity, With<Camera3d>>,
+    mut earth_query: Query<Entity, With<EarthBody>>,
+    mut commands: Commands,
 ) {
     let camera_entity = camera_query.get_single_mut().unwrap();
     let earth_entity = earth_query.get_single_mut().unwrap();
 
-
-   for mut sphere_camera in query.iter_mut() {
-       if keys.just_pressed(KeyCode::L) && !sphere_camera.look_outward {
-            if sphere_camera.locked { // locked -> unlocked
+    for mut sphere_camera in query.iter_mut() {
+        if keys.just_pressed(KeyCode::L) && !sphere_camera.look_outward {
+            if sphere_camera.locked {
+                // locked -> unlocked
                 println!("locked -> unlocked");
-                commands.entity(earth_entity).remove_children(&[camera_entity]);
+                commands
+                    .entity(earth_entity)
+                    .remove_children(&[camera_entity]);
                 commands.entity(camera_entity).despawn();
-                commands.spawn(
-                    Camera3dBundle {
-                        transform: Transform::from_xyz(0., 20., 50.).looking_at(Vec3::ZERO, Vec3::Y),
-                        ..default()
-                    },
-                );
-            } else { // unlocked -> locked
+                commands.spawn(Camera3dBundle {
+                    transform: Transform::from_xyz(0., 20., 50.).looking_at(Vec3::ZERO, Vec3::Y),
+                    ..default()
+                });
+            } else {
+                // unlocked -> locked
                 println!("unlocked -> locked");
                 commands.entity(camera_entity).despawn();
-                let new_camera = commands.spawn(Camera3dBundle {
-                    transform: Transform::from_xyz(0., 20., 44.).looking_at(Vec3::ZERO, Vec3::Y),
-                    ..default()
-                }).id();
+                let new_camera = commands
+                    .spawn(Camera3dBundle {
+                        transform: Transform::from_xyz(0., 20., 44.)
+                            .looking_at(Vec3::ZERO, Vec3::Y),
+                        ..default()
+                    })
+                    .id();
                 commands.entity(earth_entity).add_child(new_camera);
             }
 
             sphere_camera.locked = !sphere_camera.locked;
-       }
-   }
+        }
+    }
 }

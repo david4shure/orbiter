@@ -24,7 +24,7 @@ fn setup(
     mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let earth_handle = ass.load("earth.glb#Scene0");
-    let skybox_handle = ass.load("sky.glb#Scene0");
+    let skybox_handle = ass.load("sky_with_constellations.glb#Scene0");
 
     // add earth
     commands.spawn((SceneBundle {

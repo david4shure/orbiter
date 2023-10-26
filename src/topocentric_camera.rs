@@ -50,7 +50,7 @@ pub fn topo_free_look(
     let mut scale = 1.5;
 
     if keys.pressed(KeyCode::ShiftLeft) {
-        scale = 0.3;
+        scale = 0.379;
     }
     // ZYX
     // ZXY
