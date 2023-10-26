@@ -33,12 +33,21 @@ fn setup(
         ..Default::default()
     },sphere_camera::EarthBody));
 
-    // Skybox
+    // Sphere Camera
     commands.spawn(
 sphere_camera::SphereCamera {
             radius: 600.,
             ..Default::default()
         },
+    );
+
+    // Altitude Azimuth Camera
+    commands.spawn(
+        topocentric_camera::AltitudeAzimuthCamera{
+            altitude: 0.,
+            azimuth: 0.,
+            roll: 0.,
+        }
     );
 
     commands.spawn(

@@ -1,6 +1,7 @@
 use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 
+use crate::topocentric_camera;
 pub struct SphericalCameraPlugin;
 
 impl Plugin for SphericalCameraPlugin {
@@ -218,12 +219,18 @@ pub fn toggle_look_outward_camera(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut fix_marker_query: Query<Entity, With<FixMarker>>,
     ass: Res<AssetServer>,
+    mut altaz: Query<&mut topocentric_camera::AltitudeAzimuthCamera>,
 ) {
     let mut sphere_camera = sphere_camera_query.single_mut();
+    let mut altaz_in = altaz.get_single_mut().unwrap();
 
     if keys.just_pressed(KeyCode::R) && sphere_camera.locked {
         let camera_entity = camera_entity_query.get_single_mut().unwrap();
         let earth_entity = earth_entity_query.get_single_mut().unwrap();
+
+        altaz_in.altitude = 0.;
+        altaz_in.azimuth = 0.;
+        altaz_in.roll = 0.;
 
         sphere_camera.look_outward = !sphere_camera.look_outward;
 
@@ -329,6 +336,7 @@ pub fn lock_camera_to_rotation(
 
     for mut sphere_camera in query.iter_mut() {
         if keys.just_pressed(KeyCode::L) && !sphere_camera.look_outward {
+
             if sphere_camera.locked {
                 // locked -> unlocked
                 println!("locked -> unlocked");

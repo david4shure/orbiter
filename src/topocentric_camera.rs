@@ -5,20 +5,65 @@ use bevy::window::PrimaryWindow;
 use crate::sphere_camera;
 pub struct TopoCentricCameraPlugin;
 
+#[derive(Default, Reflect, Component, Resource)]
+#[reflect(Component)]
+pub struct AltitudeAzimuthCamera {
+    pub altitude: f32,
+    pub azimuth: f32,
+    pub roll: f32,
+}
+
 impl Plugin for TopoCentricCameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, topo_free_look);
+        app.add_systems(Update, topo_free_look)
+           .add_systems(Update, sync_topo_free_look)
+           .register_type::<AltitudeAzimuthCamera>();
     }
 }
 
 pub fn topo_free_look(
-    mut camera_trans_query: Query<&mut Transform, With<Camera3d>>,
+    mut altaz: Query<&mut AltitudeAzimuthCamera>,
     keys: Res<Input<KeyCode>>,
     time: Res<Time>,
-    mut ev_motion: EventReader<MouseMotion>,
-    sphere_camera_query: Query<&sphere_camera::SphereCamera>,
-    mut q_windows: Query<&mut Window, With<PrimaryWindow>>,
 ) {
+    let mut scale = 1.5;
+
+    if keys.pressed(KeyCode::ShiftLeft) {
+        scale = 0.379;
+    }
+
+    let mut altaz_in = altaz.get_single_mut().unwrap();
+
+    if keys.pressed(KeyCode::A) {
+        altaz_in.azimuth -= time.delta_seconds() * scale;
+    }
+    if keys.pressed(KeyCode::D) {
+        altaz_in.azimuth += time.delta_seconds() * scale;
+    }
+
+    if keys.pressed(KeyCode::W) {
+        altaz_in.altitude += time.delta_seconds() * scale;
+    }
+    if keys.pressed(KeyCode::S) {
+        altaz_in.altitude -= time.delta_seconds() * scale;
+    }
+
+    if keys.pressed(KeyCode::Q) {
+        altaz_in.roll += time.delta_seconds() * scale;
+    }
+    if keys.pressed(KeyCode::E) {
+        altaz_in.roll -= time.delta_seconds() * scale;
+    }
+}
+
+pub fn sync_topo_free_look(
+    mut camera_trans_query: Query<&mut Transform, With<Camera3d>>,
+    sphere_camera_query: Query<&sphere_camera::SphereCamera>,
+    mut altaz: Query<&mut AltitudeAzimuthCamera>,
+    keys: Res<Input<KeyCode>>,
+    time: Res<Time>,
+) {
+    let altaz_in = altaz.get_single_mut().unwrap();
 
     let sphere_camera = match sphere_camera_query.get_single() {
         Ok(sphere_camera) => sphere_camera,
@@ -29,61 +74,14 @@ pub fn topo_free_look(
         return;
     }
 
-    //let mut window = q_windows.single_mut();
-
-    //window.cursor.visible = false;
-
-    // Games typically only have one window (the primary window)
-    let position = q_windows.single().cursor_position();
-
     let mut camera_transform: Mut<'_, Transform> = match camera_trans_query.get_single_mut() {
         Ok(camera_transform) => camera_transform,
         Err(_) => return,
     };
 
-    let mut net_motion: Vec2 = Vec2::ZERO;
+    camera_transform.rotation = Quat::from_rotation_x(0.);
 
-    for ev in ev_motion.iter() {
-        net_motion += ev.delta;
-    }
-
-    let mut scale = 1.5;
-
-    if keys.pressed(KeyCode::ShiftLeft) {
-        scale = 0.379;
-    }
-    // ZYX
-    // ZXY
-    // XYZ
-    // XZY
-    // YXZ
-    // YZX
-
-
-    // initial rotation for placement cube. Z accordining phi, X according to theta.
-    //let quat = Quat::from_euler(EulerRot::ZXY, 0., net_motion.y/200., -net_motion.x/200.);
-
-    //camera_transform.rotate(quat);
-
-    if keys.pressed(KeyCode::A) {
-        camera_transform.rotate_y(time.delta_seconds() * scale);
-    }
-    if keys.pressed(KeyCode::D) {
-        camera_transform.rotate_y(-time.delta_seconds() * scale);
-    }
-
-    if keys.pressed(KeyCode::W) {
-        camera_transform.rotate_local_x(time.delta_seconds() * scale);
-    }
-    if keys.pressed(KeyCode::S) {
-        camera_transform.rotate_local_x(-time.delta_seconds() * scale);
-    }
-
-    if keys.pressed(KeyCode::Q) {
-        camera_transform.rotate_local_z(time.delta_seconds() * scale);
-    }
-    if keys.pressed(KeyCode::E) {
-        camera_transform.rotate_local_z(-time.delta_seconds() * scale);
-    }
-
+    camera_transform.rotate_y(-altaz_in.azimuth);
+    camera_transform.rotate_local_x(altaz_in.altitude);
+    camera_transform.rotate_local_z(altaz_in.roll);
 }
