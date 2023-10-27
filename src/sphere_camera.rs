@@ -55,7 +55,7 @@ pub fn camera_coords_and_look_vector(sphere_camera: &SphereCamera) -> (Vec3, Vec
     let theta = sphere_camera.theta;
     let radius = sphere_camera.radius;
 
-    const FLIP_PADDING: f32 = 0.0015;
+    const FLIP_PADDING: f32 = 0.000015;
 
     if phi >= std::f32::consts::PI - FLIP_PADDING {
         phi = std::f32::consts::PI - FLIP_PADDING;
@@ -280,7 +280,8 @@ pub fn toggle_look_outward_camera(
             let south = commands
                 .spawn(SceneBundle {
                     scene: south_handle,
-                    transform: Transform::from_xyz(0.0, -0.53, 30.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+                    transform: Transform::from_xyz(0.0, -0.53, 30.0)
+                        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
                     ..Default::default()
                 })
                 .id();
@@ -288,7 +289,8 @@ pub fn toggle_look_outward_camera(
             let east = commands
                 .spawn(SceneBundle {
                     scene: east_handle,
-                    transform: Transform::from_xyz(30.0, -0.53, 0.0).with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
+                    transform: Transform::from_xyz(30.0, -0.53, 0.0)
+                        .with_rotation(Quat::from_rotation_y(std::f32::consts::PI)),
                     ..Default::default()
                 })
                 .id();
