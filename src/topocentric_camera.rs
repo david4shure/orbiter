@@ -51,10 +51,10 @@ pub fn lat_long(
     let sphere_camera = sphere_camera_query.get_single_mut().unwrap();
     let mut text = text_query.get_single_mut().unwrap();
 
-    let mut lat = 0.;
-    let mut lat_dir = "";
-    let mut long = 0.;
-    let mut long_dir = "";
+    let mut lat;
+    let lat_dir;
+    let mut long;
+    let long_dir;
 
     let mut long_norm = sphere_camera.theta % (2. * std::f32::consts::PI);
 
