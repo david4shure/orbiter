@@ -1,6 +1,4 @@
-use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 
 use crate::sphere_camera;
 pub struct TopoCentricCameraPlugin;
@@ -129,8 +127,6 @@ pub fn sync_topo_free_look(
     mut camera_trans_query: Query<&mut Transform, With<Camera3d>>,
     sphere_camera_query: Query<&sphere_camera::SphereCamera>,
     mut altaz: Query<&mut AltitudeAzimuthCamera>,
-    keys: Res<Input<KeyCode>>,
-    time: Res<Time>,
 ) {
     let altaz_in = altaz.get_single_mut().unwrap();
 

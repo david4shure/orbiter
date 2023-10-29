@@ -20,8 +20,6 @@ fn main() {
 fn setup(
     mut commands: Commands,
     ass: Res<AssetServer>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut standard_materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let earth_handle = ass.load("earth.glb#Scene0");
     let skybox_handle = ass.load("sky_actual_constel.glb#Scene0");
