@@ -83,7 +83,8 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
         // transform: Transform::from_xyz(5.0, 8.0, 2.0),
         transform: Transform::from_xyz(5000.0, 4.0, 0.0),
         point_light: PointLight {
-            intensity: 16000.0, // lumens - roughly a 100W non-halogen incandescent bulb
+            range: 100000.,
+            intensity: 10000000000., // lumens - roughly a 100W non-halogen incandescent bulb
             color: Color::WHITE,
             shadows_enabled: true,
             ..default()

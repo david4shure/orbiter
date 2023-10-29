@@ -1,9 +1,9 @@
 use crate::lines;
+use bevy::pbr::{CascadeShadowConfigBuilder, NotShadowCaster, NotShadowReceiver};
 use bevy::prelude::*;
 use bevy_inspector_egui::prelude::*;
 use ndarray::{arr1, arr2};
 use std::str;
-
 pub struct OrbitPlugin;
 
 impl Plugin for OrbitPlugin {
@@ -253,12 +253,13 @@ impl OrbitalParameters {
     }
 }
 
-pub fn rotate_earth(mut query: Query<&mut Transform, With<EarthBody>>, time: Res<Time>, time_scale: Res<TimeScale>) {
+pub fn rotate_earth(
+    mut query: Query<&mut Transform, With<EarthBody>>,
+    time: Res<Time>,
+    time_scale: Res<TimeScale>,
+) {
     for mut transform in &mut query {
-        let val = ((time.delta_seconds() * time_scale.scale as f32)
-                / 86400 as f32)
-                * 2.
-                * PI;
+        let val = ((time.delta_seconds() * time_scale.scale as f32) / 86400 as f32) * 2. * PI;
         transform.rotate_y(val);
     }
 }
@@ -322,14 +323,17 @@ pub fn draw_lunar_orbit_lines(
                     points: orbit_lines,
                 })),
                 transform: Transform::from_xyz(0.5, 0.0, 0.0),
-                material: materials.add(StandardMaterial{
+                material: materials.add(StandardMaterial {
                     base_color: Color::rgba(1., 0.0, 0.0, 1.),
-                    emissive: Color::rgba(1., 0.,0.,1.),
+                    emissive: Color::rgba(1., 0., 0., 1.),
+                    unlit: true,
                     ..default()
                 }),
                 ..default()
             },
             lines::OrbitalLines,
+            NotShadowCaster,
+            NotShadowReceiver,
         ));
         println!("Orbit changed.");
     }
