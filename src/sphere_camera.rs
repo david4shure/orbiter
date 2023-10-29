@@ -2,6 +2,7 @@ use bevy::input::mouse::{MouseMotion, MouseWheel};
 use bevy::prelude::*;
 
 use crate::topocentric_camera;
+use crate::orbit;
 pub struct SphericalCameraPlugin;
 
 impl Plugin for SphericalCameraPlugin {
@@ -18,9 +19,6 @@ impl Plugin for SphericalCameraPlugin {
 
 #[derive(Component)]
 pub struct FixMarker;
-
-#[derive(Component)]
-pub struct EarthBody;
 
 #[derive(Reflect, Component, Resource)]
 #[reflect(Component)]
@@ -197,7 +195,7 @@ pub fn disable_mouse_scroll(mut sphere_cam_q: Query<&mut SphereCamera>, keys: Re
 }
 
 pub fn sync_base_theta_for_sphere_camera(
-    mut earth_trans_q: Query<(&mut EarthBody, &mut Transform)>,
+    mut earth_trans_q: Query<(&mut orbit::EarthBody, &mut Transform)>,
     mut sphere_cam_q: Query<&mut SphereCamera>,
 ) {
     for (_, transform) in earth_trans_q.iter_mut() {
@@ -213,7 +211,7 @@ pub fn toggle_look_outward_camera(
     keys: Res<Input<KeyCode>>,
     mut sphere_camera_query: Query<&mut SphereCamera>,
     mut camera_entity_query: Query<Entity, With<Camera3d>>,
-    mut earth_entity_query: Query<Entity, With<EarthBody>>,
+    mut earth_entity_query: Query<Entity, With<orbit::EarthBody>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -330,7 +328,7 @@ pub fn lock_camera_to_rotation(
     keys: Res<Input<KeyCode>>,
     mut query: Query<&mut SphereCamera>,
     mut camera_query: Query<Entity, With<Camera3d>>,
-    mut earth_query: Query<Entity, With<EarthBody>>,
+    mut earth_query: Query<Entity, With<orbit::EarthBody>>,
     mut commands: Commands,
 ) {
     let camera_entity = camera_query.get_single_mut().unwrap();

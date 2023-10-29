@@ -1,17 +1,40 @@
-use crate::body_labels;
 use crate::lines;
-use crate::sphere_camera;
 use bevy::prelude::*;
 use bevy_inspector_egui::prelude::*;
 use ndarray::{arr1, arr2};
 use std::str;
 
+pub struct OrbitPlugin;
+
+impl Plugin for OrbitPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, moon_orbit)
+            .add_systems(Update, rotate_moon)
+            .add_systems(Update, rotate_earth)
+            .add_systems(Update, draw_lunar_orbit_lines)
+            //.add_systems(Update, draw_lunar_orbit_lines)
+            .insert_resource(LunarOrbit {
+                ..Default::default()
+            })
+            .insert_resource(lines::LineStrip {
+                ..Default::default()
+            })
+            .insert_resource(TimeScale {
+                ..Default::default()
+            })
+            .add_plugins(MaterialPlugin::<lines::LineMaterial>::default())
+            .register_type::<TimeScale>()
+            .register_type::<LunarOrbit>()
+            .register_type::<OrbitalParameters>();
+    }
+}
+
 // Consts
 const G: f64 = 6.67e-20; // In KM!
 use std::f32::consts::PI;
 const PI64: f64 = PI as f64;
-pub const REAL_TO_WORLD: f32 = 100. / 12742.; // 100 in world unit to 12,742 KM (Earth width)
-pub const WORLD_TO_REAL: f32 = 12742. / 100.; // 12742 KM to 100 world units
+pub const REAL_TO_WORLD: f32 = 500. / 12742.; // 100 in world unit to 12,742 KM (Earth width)
+pub const WORLD_TO_REAL: f32 = 12742. / 500.; // 12742 KM to 100 world units
 
 #[derive(Reflect, Resource, InspectorOptions)]
 #[reflect(Resource, InspectorOptions)]
@@ -21,7 +44,7 @@ pub struct TimeScale {
 
 impl Default for TimeScale {
     fn default() -> Self {
-        return TimeScale { scale: 86400. };
+        return TimeScale { scale: 3600. };
     }
 }
 
@@ -98,15 +121,15 @@ impl OrbitalParameters {
     ) -> OrbitalParameters {
         let mu = G * mass_of_parent;
         OrbitalParameters {
-            semimajor_axis: semimajor_axis,
-            eccentricity: eccentricity,
-            inclination: inclination,
-            arg_of_periapsis: arg_of_periapsis,
-            longitude_asc_node: longitude_asc_node,
-            mass_of_parent: mass_of_parent,
+            semimajor_axis,
+            eccentricity,
+            inclination,
+            arg_of_periapsis,
+            longitude_asc_node,
+            mass_of_parent,
             grav_parameter: mu,
             period: 2. * PI64 * (semimajor_axis.powf(3.) / mu).sqrt(),
-            rotational_period: rotational_period,
+            rotational_period,
         }
     }
 
@@ -218,7 +241,8 @@ impl OrbitalParameters {
         let mut t: f64 = 0.;
 
         while t <= period {
-            lines.push(REAL_TO_WORLD * self.position(t));
+            let vec = REAL_TO_WORLD * self.position(t);
+            lines.push(Vec3::new(-vec.x, -vec.z, vec.y));
             t = t + time_increment;
         }
 
@@ -229,36 +253,13 @@ impl OrbitalParameters {
     }
 }
 
-pub fn change_body(
-    mut query: Query<&mut sphere_camera::SphereCamera>,
-    keys: Res<Input<KeyCode>>,
-    time: Res<Time>,
-    mut text_query: Query<&mut Text, With<body_labels::BodyTextLabel>>,
-) {
-    for mut camera in &mut query {
-        camera.body_switch_cooldown.tick(time.delta());
-
-        let mut increment = 0;
-
-        if keys.pressed(KeyCode::Right) {
-            increment = 1;
-        } else if keys.pressed(KeyCode::Left) {
-            increment = -1;
-        }
-
-        if camera.body_switch_cooldown.finished() {
-            camera.body_idx = camera.body_idx + increment;
-            camera.body_switch_cooldown.reset();
-            for mut text in text_query.iter_mut() {
-                text.sections[0].value = "".to_string();
-            }
-        }
-    }
-}
-
-pub fn rotate_earth(mut query: Query<&mut Transform, With<EarthBody>>, time: Res<Time>) {
+pub fn rotate_earth(mut query: Query<&mut Transform, With<EarthBody>>, time: Res<Time>, time_scale: Res<TimeScale>) {
     for mut transform in &mut query {
-        transform.rotate_z(time.delta_seconds() / 3.0);
+        let val = ((time.delta_seconds() * time_scale.scale as f32)
+                / 86400 as f32)
+                * 2.
+                * PI;
+        transform.rotate_y(val);
     }
 }
 
@@ -294,7 +295,7 @@ pub fn moon_orbit(
     posn.z *= REAL_TO_WORLD;
 
     for mut transform in &mut body_query {
-        transform.translation = posn;
+        transform.translation = Vec3::new(-posn.x, -posn.z, posn.y);
     }
 }
 
@@ -303,7 +304,7 @@ pub fn draw_lunar_orbit_lines(
     mut commands: Commands,
     mut mesh_query: Query<Entity, With<lines::OrbitalLines>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<lines::LineMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // Only despawn original lines if the orbit has changed.
     if orbit.is_changed() {
@@ -321,8 +322,10 @@ pub fn draw_lunar_orbit_lines(
                     points: orbit_lines,
                 })),
                 transform: Transform::from_xyz(0.5, 0.0, 0.0),
-                material: materials.add(lines::LineMaterial {
-                    color: Color::rgba(0.4, 0.0, 0.0, 1.),
+                material: materials.add(StandardMaterial{
+                    base_color: Color::rgba(1., 0.0, 0.0, 1.),
+                    emissive: Color::rgba(1., 0.,0.,1.),
+                    ..default()
                 }),
                 ..default()
             },

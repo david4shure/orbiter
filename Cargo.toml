@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 bevy = "0.11.3"
 bevy-inspector-egui = "0.20.0"
+ndarray = "0.15.6"
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]

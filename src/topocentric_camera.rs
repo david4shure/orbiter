@@ -107,14 +107,12 @@ pub fn topo_free_look(
     if keys.pressed(KeyCode::D) {
         altaz_in.azimuth += time.delta_seconds() * scale;
     }
-
     if keys.pressed(KeyCode::W) {
         altaz_in.altitude += time.delta_seconds() * scale;
     }
     if keys.pressed(KeyCode::S) {
         altaz_in.altitude -= time.delta_seconds() * scale;
     }
-
     if keys.pressed(KeyCode::Q) {
         altaz_in.roll += time.delta_seconds() * scale;
     }
