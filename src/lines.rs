@@ -13,29 +13,6 @@ use bevy::{
 
 #[derive(Resource, Component)]
 pub struct OrbitalLines;
-#[derive(AsBindGroup, Debug, Clone, TypeUuid, TypePath)]
-#[uuid = "050ce6ac-080a-4d8c-b6b5-b5bab7560d8f"]
-pub struct LineMaterial {
-    #[uniform(0)]
-    pub color: Color,
-}
-
-impl Material for LineMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/line_material.wgsl".into()
-    }
-
-    fn specialize(
-        _pipeline: &MaterialPipeline<Self>,
-        descriptor: &mut RenderPipelineDescriptor,
-        _layout: &MeshVertexBufferLayout,
-        _key: MaterialPipelineKey<Self>,
-    ) -> Result<(), SpecializedMeshPipelineError> {
-        // This is the important part to tell bevy to render this material as a line between vertices
-        descriptor.primitive.polygon_mode = PolygonMode::Line;
-        Ok(())
-    }
-}
 
 /// A list of lines with a start and end position
 #[derive(Debug, Clone)]

@@ -22,7 +22,6 @@ impl Plugin for OrbitPlugin {
             .insert_resource(TimeScale {
                 ..Default::default()
             })
-            .add_plugins(MaterialPlugin::<lines::LineMaterial>::default())
             .register_type::<TimeScale>()
             .register_type::<LunarOrbit>()
             .register_type::<OrbitalParameters>();
@@ -317,24 +316,24 @@ pub fn draw_lunar_orbit_lines(
 
         // Draw moon lines
         // Spawn a line strip that goes from point to point
-        commands.spawn((
-            MaterialMeshBundle {
-                mesh: meshes.add(Mesh::from(lines::LineStrip {
-                    points: orbit_lines,
-                })),
-                transform: Transform::from_xyz(0.5, 0.0, 0.0),
-                material: materials.add(StandardMaterial {
-                    base_color: Color::rgba(1., 0.0, 0.0, 1.),
-                    emissive: Color::rgba(1., 0., 0., 1.),
-                    unlit: true,
-                    ..default()
-                }),
-                ..default()
-            },
-            lines::OrbitalLines,
-            NotShadowCaster,
-            NotShadowReceiver,
-        ));
+        // commands.spawn((
+        //     MaterialMeshBundle {
+        //         mesh: meshes.add(Mesh::from(lines::LineStrip {
+        //             points: orbit_lines,
+        //         })),
+        //         transform: Transform::from_xyz(0.5, 0.0, 0.0),
+        //         material: materials.add(StandardMaterial {
+        //             base_color: Color::rgba(1., 0.0, 0.0, 1.),
+        //             emissive: Color::rgba(1., 0., 0., 1.),
+        //             unlit: true,
+        //             ..default()
+        //         }),
+        //         ..default()
+        //     },
+        //     lines::OrbitalLines,
+        //     NotShadowCaster,
+        //     NotShadowReceiver,
+        // ));
         println!("Orbit changed.");
     }
 }
