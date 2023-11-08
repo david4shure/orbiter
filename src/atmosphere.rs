@@ -286,7 +286,7 @@ impl FromWorld for PostProcessPipeline {
         // Get the shader handle
         let shader = world
             .resource::<AssetServer>()
-            .load("shaders/atmosphere.frag");
+            .load("shaders/atmosphere.wgsl");
 
         let pipeline_id = world
             .resource_mut::<PipelineCache>()
@@ -301,7 +301,7 @@ impl FromWorld for PostProcessPipeline {
                     shader_defs: vec![],
                     // Make sure this matches the entry point of your shader.
                     // It can be anything as long as it matches here and in the shader.
-                    entry_point: "main".into(),
+                    entry_point: "fragment".into(),
                     targets: vec![Some(ColorTargetState {
                         format: TextureFormat::bevy_default(),
                         blend: None,
@@ -328,39 +328,26 @@ impl FromWorld for PostProcessPipeline {
 // This is the component that will get passed to the shader
 #[derive(Component, Default, Clone, Copy, ExtractComponent, ShaderType)]
 pub struct AtmosphereSettings {
-    // layout(set = 1, binding = 5) uniform vec3 sunPosition; // position of the sun in world space
     pub sunPosition: Vec3,
-    // layout(set = 1, binding = 6) uniform vec3 cameraPosition; // position of the camera in world space
     pub cameraPosition: Vec3,
-    // layout(set = 1, binding = 7) uniform mat4 inverseProjection; // camera's inverse projection matrix
     pub inverseProjection: Mat4,
-    // layout(set = 1, binding = 8) uniform mat4 inverseView; // camera's inverse view matrix
     pub inverseView: Mat4,
-    // layout(set = 1, binding = 9) uniform float cameraNear; // camera minZ
     pub cameraNear: f32,
-    // layout(set = 1, binding = 10) uniform float cameraFar; // camera maxZ
     pub cameraFar: f32,
 
-    //uniform vec3 planetPosition; // planet position in world space
     pub planetPosition: Vec3,
-    // uniform float planetRadius; // planet radius for height calculations
     pub planetRadius: f32,
-    // uniform float atmosphereRadius; // atmosphere radius (calculate from planet center)
     pub atmosphereRadius: f32,
 
-    // uniform float falloffFactor; // controls exponential opacity falloff
     pub falloffFactor: f32,
-    // uniform float sunIntensity; // controls atmosphere overall brightness
     pub sunIntensity: f32,
-    // uniform float scatteringStrength; // controls color dispersion
     pub scatteringStrength: f32,
-    // uniform float densityModifier; // density of the atmosphere
     pub densityModifier: f32,
 
-    // uniform float redWaveLength; // the wave length for the red part of the scattering
     pub redWaveLength: f32,
-    // uniform float greenWaveLength; // same with green
     pub greenWaveLength: f32,
-    // uniform float blueWaveLength; // same with blue
     pub blueWaveLength: f32,
+    // WebGL2 structs must be 16 byte aligned.
+    #[cfg(feature = "webgl2")]
+    _webgl2_padding: Vec3,
 }
