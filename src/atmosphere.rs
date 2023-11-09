@@ -4,11 +4,10 @@
 //! The example shader is a very simple implementation of chromatic aberration.
 //!
 //! This is a fairly low level example and assumes some familiarity with rendering concepts and wgpu.
-
+use bevy_inspector_egui::prelude::*;
 use bevy::{
-    core_pipeline::prepass::{DepthPrepass, MotionVectorPrepass, NormalPrepass},
     core_pipeline::{
-        clear_color::ClearColorConfig, core_3d,
+        core_3d,
         fullscreen_vertex_shader::fullscreen_shader_vertex_state, prepass::ViewPrepassTextures,
     },
     ecs::query::QueryItem,
@@ -26,12 +25,12 @@ use bevy::{
             MultisampleState, Operations, PipelineCache, PrimitiveState, RenderPassColorAttachment,
             RenderPassDescriptor, RenderPipelineDescriptor, Sampler, SamplerBindingType,
             SamplerDescriptor, ShaderStages, ShaderType, TextureFormat, TextureSampleType,
-            TextureViewDimension, BufferBindingType,
+            TextureViewDimension, FilterMode,
         },
         renderer::{RenderContext, RenderDevice},
         texture::BevyDefault,
         view::ViewTarget,
-        RenderApp, camera::ExtractedCamera,
+        RenderApp,
     },
 };
 
@@ -52,7 +51,8 @@ impl Plugin for PostProcessPlugin {
             // This plugin will prepare the component for the GPU by creating a uniform buffer
             // and writing the data to that buffer every frame.
             UniformComponentPlugin::<AtmosphereSettings>::default(),
-        ));
+        )).
+        insert_resource(Msaa::Off);
 
         // We need to get the render app from the main app
         let Ok(render_app) = app.get_sub_app_mut(RenderApp) else {
@@ -281,7 +281,11 @@ impl FromWorld for PostProcessPipeline {
 
         // We can create the sampler here since it won't change at runtime and doesn't depend on the view
         let screen_sampler = render_device.create_sampler(&SamplerDescriptor::default());
-        let depth_sampler = render_device.create_sampler(&SamplerDescriptor::default());
+        let depth_sampler = render_device.create_sampler(&SamplerDescriptor{
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Linear,
+            ..SamplerDescriptor::default()
+        });
 
         // Get the shader handle
         let shader = world
@@ -326,7 +330,9 @@ impl FromWorld for PostProcessPipeline {
 }
 
 // This is the component that will get passed to the shader
-#[derive(Component, Default, Clone, Copy, ExtractComponent, ShaderType)]
+#[derive(Component, Resource, Default, Clone, Copy, ExtractComponent, ShaderType, Reflect, InspectorOptions)]
+#[reflect(Resource, InspectorOptions)]
+#[repr(C)]
 pub struct AtmosphereSettings {
     pub sunPosition: Vec3,
     pub cameraPosition: Vec3,

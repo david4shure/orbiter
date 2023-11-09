@@ -9,10 +9,6 @@ use sphere_camera::SphericalCameraPlugin;
 use topocentric_camera::TopoCentricCameraPlugin;
 use bevy::{
     core_pipeline::prepass::{DepthPrepass, MotionVectorPrepass, NormalPrepass},
-    pbr::{PbrPlugin},
-    prelude::*,
-    reflect::TypeUuid,
-    render::render_resource::{AsBindGroup, ShaderRef, ShaderType},
 };
 
 mod lines;
@@ -26,12 +22,12 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
+        .add_systems(Update, sync_data_to_atmosphere_settings)
         .add_plugins(TopoCentricCameraPlugin)
         .add_plugins((WorldInspectorPlugin::new(), SphericalCameraPlugin))
         .add_plugins(OrbitPlugin)
         .add_plugins(atmosphere::PostProcessPlugin)
-        .insert_resource(Msaa::Off)
-        .add_systems(Update, sync_data_to_atmosphere_settings)
+        .register_type::<atmosphere::AtmosphereSettings>()
         .run();
 }
 
@@ -74,14 +70,14 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
         // This component is also used to determine on which camera to run the post processing effect.
         atmosphere::AtmosphereSettings {
             planetPosition: Vec3::new(0.,0.,0.),
-            planetRadius: 300.,
-            atmosphereRadius: 340.,
-            falloffFactor: 0.8,
-            sunIntensity: 100000.,
+            planetRadius: 500.,
+            atmosphereRadius: 100.,
+            falloffFactor: 15.,
+            sunIntensity: 15.,
             scatteringStrength: 1.,
-            densityModifier: 0.8,
+            densityModifier: 10.,
             redWaveLength: 700.,
-            greenWaveLength: 450.,
+            greenWaveLength: 530.,
             blueWaveLength: 440.,
             sunPosition: Vec3::new(5000.0, 4.0, 0.0),
             cameraPosition: Vec3::new(0.,0.,0.),
@@ -94,9 +90,9 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
         // This will write the depth buffer to a texture that you can use in the main pass
         DepthPrepass,
         // This will generate a texture containing world normals (with normal maps applied)
-        NormalPrepass,
+        //NormalPrepass,
         // This will generate a texture containing screen space pixel motion vectors
-        MotionVectorPrepass,
+        //MotionVectorPrepass,
     ));
 
     //commands.insert_resource(AmbientLight {
@@ -163,35 +159,41 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
         .insert(Name::new("Moon"));
 }
 
-//fn rotate_earth(mut query: Query<&mut Transform, With<orbit::EarthBody>>, time: Res<Time>) {
-//    for mut transform in query.iter_mut() {
-//        transform.rotate_y(time.delta_seconds() * 0.4);
-//    }
-//}
-
-
 pub fn sync_data_to_atmosphere_settings(
     mut camera_q: Query<&mut GlobalTransform, With<Camera3d>>,
-    mut projection_q: Query<&mut PerspectiveProjection, With<Camera3d>>,
+    mut projection_q: Query<&mut Projection>,
     mut atmosphere_q: Query<&mut AtmosphereSettings>,
 ) {
+    println!("Updating atmosphere settings");
+
     let mut atmosphere = match atmosphere_q.get_single_mut() {
         Ok(atmosphere) => atmosphere,
         Err(_) => return,
     };
 
-    let mut camera = match camera_q.get_single_mut() {
+    println!("Found atmosphere");
+
+    let camera = match camera_q.get_single_mut() {
         Ok(camera) => camera,
         Err(_) => return,
     };
 
-    let mut projection = match projection_q.get_single_mut() {
+    println!("found camera");
+
+    for proj in projection_q.iter() {
+        println!("Found one...");
+
+    }
+
+    let projection = match projection_q.get_single_mut() {
         Ok(projection) => projection,
         Err(_) => return,
     };
 
-    atmosphere.cameraFar = projection.far;
-    atmosphere.cameraNear = projection.near;
+    println!("found projection...");
+
+    atmosphere.cameraFar = projection.far();
+    atmosphere.cameraNear = 0.1;
     atmosphere.inverseProjection = projection.get_projection_matrix().inverse();
     atmosphere.inverseView = camera.compute_matrix().inverse();
     atmosphere.cameraPosition = camera.translation();

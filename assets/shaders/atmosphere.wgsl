@@ -23,7 +23,7 @@
 @group(0) @binding(0) var screen_texture: texture_2d<f32>;
 @group(0) @binding(1) var screen_texture_sampler: sampler;
 
-@group(0) @binding(2) var depth_texture: texture_2d<f32>;
+@group(0) @binding(2) var depth_texture: texture_depth_2d;
 @group(0) @binding(3) var depth_texture_sampler: sampler;
 
 struct AtmosphereSettings {
@@ -203,7 +203,7 @@ fn scatter(originalColor : vec3<f32>, rayOrigin : vec3<f32>, rayDir : vec3<f32>,
 @fragment
 fn fragment(in: FullscreenVertexOutput) -> @location(0) vec4<f32> {
     var screenColorSampled: vec3<f32> = textureSample(screen_texture, screen_texture_sampler, in.uv).rgb;
-    var depthSampled: f32 = textureSample(depth_texture, depth_texture_sampler, in.uv).r;
+    var depthSampled: f32 = textureSample(depth_texture, depth_texture_sampler, in.uv);
 
     var deepestPoint: vec3<f32> = worldFromUV(in.uv, depthSampled, atmosphere_settings);
     var maximumDistance: f32 = length(deepestPoint);
