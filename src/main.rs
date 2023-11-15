@@ -6,9 +6,10 @@ use bevy::render::camera::CameraProjection;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use orbit::OrbitPlugin;
 use sphere_camera::SphericalCameraPlugin;
+use time::PhysicsTimePlugin;
 use topocentric_camera::TopoCentricCameraPlugin;
 use bevy::{
-    core_pipeline::prepass::{DepthPrepass, MotionVectorPrepass, NormalPrepass},
+    core_pipeline::prepass::{DepthPrepass},
 };
 
 mod lines;
@@ -16,6 +17,7 @@ mod orbit;
 mod sphere_camera;
 mod topocentric_camera;
 mod atmosphere;
+mod time;
 
 fn main() {
     App::new()
@@ -26,6 +28,7 @@ fn main() {
         .add_plugins(TopoCentricCameraPlugin)
         .add_plugins((WorldInspectorPlugin::new(), SphericalCameraPlugin))
         .add_plugins(OrbitPlugin)
+        .add_plugins(PhysicsTimePlugin)
         .add_plugins(atmosphere::PostProcessPlugin)
         .register_type::<atmosphere::AtmosphereSettings>()
         .run();
@@ -70,8 +73,8 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
         // This component is also used to determine on which camera to run the post processing effect.
         atmosphere::AtmosphereSettings {
             planetPosition: Vec3::new(0.,0.,0.),
-            planetRadius: 500.,
-            atmosphereRadius: 100.,
+            planetRadius: 1000.,
+            atmosphereRadius: 10.,
             falloffFactor: 15.,
             sunIntensity: 15.,
             scatteringStrength: 1.,
@@ -80,7 +83,7 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
             greenWaveLength: 530.,
             blueWaveLength: 440.,
             sunPosition: Vec3::new(5000.0, 4.0, 0.0),
-            cameraPosition: Vec3::new(0.,0.,0.),
+            cameraPosition: Vec3::new(1000.,0.,0.),
             inverseProjection: Mat4::IDENTITY,
             inverseView: Mat4::IDENTITY,
             cameraFar: 0.,
@@ -95,32 +98,12 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
         //MotionVectorPrepass,
     ));
 
-    //commands.insert_resource(AmbientLight {
-    //    color: Color::WHITE,
-    //    brightness: 0.1,
-    //});
-
-    // Sun light
-    //commands
-    //    .spawn(DirectionalLightBundle {
-    //        directional_light: DirectionalLight {
-    //            color: Color::WHITE,
-    //            illuminance: 100000.,
-    //            shadows_enabled: true,
-    //            ..default()
-    //        },
-    //        transform: Transform::from_xyz(1000.0, -100.0, 0.0)
-    //            .with_rotation(Quat::from_rotation_x(23.4 * std::f32::consts::PI / 180.)),
-    //        ..default()
-    //    })
-    //    .insert(Name::new("Sun Light"));
-
     commands.spawn(PointLightBundle {
         // transform: Transform::from_xyz(5.0, 8.0, 2.0),
-        transform: Transform::from_xyz(5000.0, 4.0, 0.0),
+        transform: Transform::from_xyz(50000.0, 0.0, 0.0),
         point_light: PointLight {
             range: 100000.,
-            intensity: 10000000000., // lumens - roughly a 100W non-halogen incandescent bulb
+            intensity: 999999995904.0, // lumens - roughly a 100W non-halogen incandescent bulb
             color: Color::WHITE,
             shadows_enabled: true,
             ..default()
@@ -164,33 +147,20 @@ pub fn sync_data_to_atmosphere_settings(
     mut projection_q: Query<&mut Projection>,
     mut atmosphere_q: Query<&mut AtmosphereSettings>,
 ) {
-    println!("Updating atmosphere settings");
-
     let mut atmosphere = match atmosphere_q.get_single_mut() {
         Ok(atmosphere) => atmosphere,
         Err(_) => return,
     };
-
-    println!("Found atmosphere");
 
     let camera = match camera_q.get_single_mut() {
         Ok(camera) => camera,
         Err(_) => return,
     };
 
-    println!("found camera");
-
-    for proj in projection_q.iter() {
-        println!("Found one...");
-
-    }
-
     let projection = match projection_q.get_single_mut() {
         Ok(projection) => projection,
         Err(_) => return,
     };
-
-    println!("found projection...");
 
     atmosphere.cameraFar = projection.far();
     atmosphere.cameraNear = 0.1;

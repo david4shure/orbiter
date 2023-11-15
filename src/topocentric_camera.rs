@@ -148,4 +148,3 @@ pub fn sync_topo_free_look(
     camera_transform.rotate_local_x(altaz_in.altitude);
     camera_transform.rotate_local_z(altaz_in.roll);
 }
-

@@ -1,5 +1,6 @@
 use crate::lines;
-use bevy::pbr::{CascadeShadowConfigBuilder, NotShadowCaster, NotShadowReceiver};
+use crate::time::{PhysicsTime, PhysicsTimeMode};
+use bevy::pbr::{NotShadowCaster, NotShadowReceiver};
 use bevy::prelude::*;
 use bevy_inspector_egui::prelude::*;
 use ndarray::{arr1, arr2};
@@ -19,10 +20,6 @@ impl Plugin for OrbitPlugin {
             .insert_resource(lines::LineStrip {
                 ..Default::default()
             })
-            .insert_resource(TimeScale {
-                ..Default::default()
-            })
-            .register_type::<TimeScale>()
             .register_type::<LunarOrbit>()
             .register_type::<OrbitalParameters>();
     }
@@ -34,18 +31,6 @@ use std::f32::consts::PI;
 const PI64: f64 = PI as f64;
 pub const REAL_TO_WORLD: f32 = 500. / 12742.; // 100 in world unit to 12,742 KM (Earth width)
 pub const WORLD_TO_REAL: f32 = 12742. / 500.; // 12742 KM to 100 world units
-
-#[derive(Reflect, Resource, InspectorOptions)]
-#[reflect(Resource, InspectorOptions)]
-pub struct TimeScale {
-    pub scale: f64,
-}
-
-impl Default for TimeScale {
-    fn default() -> Self {
-        return TimeScale { scale: 3600. };
-    }
-}
 
 #[derive(Reflect, Resource, InspectorOptions, Component)]
 #[reflect(Resource, InspectorOptions)]
@@ -81,15 +66,15 @@ pub struct MoonBody;
 #[derive(Reflect, Resource, InspectorOptions, Clone, Copy)]
 #[reflect(Resource, InspectorOptions)]
 pub struct OrbitalParameters {
-    semimajor_axis: f64,     // KM
-    longitude_asc_node: f64, // Radians
-    arg_of_periapsis: f64,   // Radians
-    inclination: f64,        // Radians
-    eccentricity: f64,       // Unitless
-    mass_of_parent: f64,     // KG
-    grav_parameter: f64,     // KM^3s^-2
-    period: f64,             // Seconds
-    rotational_period: f64,  // Seconds
+    pub semimajor_axis: f64,     // KM
+    pub longitude_asc_node: f64, // Radians
+    pub arg_of_periapsis: f64,   // Radians
+    pub inclination: f64,        // Radians
+    pub eccentricity: f64,       // Unitless
+    pub mass_of_parent: f64,     // KG
+    pub grav_parameter: f64,     // KM^3s^-2
+    pub period: f64,             // Seconds
+    pub rotational_period: f64,  // Seconds
 }
 
 impl Default for OrbitalParameters {
@@ -254,27 +239,37 @@ impl OrbitalParameters {
 
 pub fn rotate_earth(
     mut query: Query<&mut Transform, With<EarthBody>>,
-    time: Res<Time>,
-    time_scale: Res<TimeScale>,
+    physics_time_q: Query<&PhysicsTime>,
 ) {
+    let physics_time = physics_time_q.single();
+
+    if physics_time.mode == PhysicsTimeMode::StopTick {
+        return;
+    }
+
     for mut transform in &mut query {
-        let val = ((time.delta_seconds() * time_scale.scale as f32) / 86400 as f32) * 2. * PI;
-        transform.rotate_y(val);
+        let val = (physics_time.delta_seconds / 86400.0) * 2. * std::f64::consts::PI;
+        transform.rotate_y(val as f32);
     }
 }
 
 pub fn rotate_moon(
     mut query: Query<&mut Transform, With<MoonBody>>,
-    time: Res<Time>,
-    time_scale: Res<TimeScale>,
+    physics_time_q: Query<&mut PhysicsTime>,
     lunar_orbit: ResMut<LunarOrbit>,
 ) {
+    let physics_time = physics_time_q.single();
+
+    if physics_time.mode == PhysicsTimeMode::StopTick {
+        return;
+    }
+
     for mut transform in &mut query {
-        transform.rotate_z(
-            ((time.delta_seconds() * time_scale.scale as f32)
-                / lunar_orbit.orbit.rotational_period as f32)
+        transform.rotate_y(
+            ((physics_time.delta_seconds
+                / lunar_orbit.orbit.rotational_period)
                 * 2.
-                * PI,
+                * std::f64::consts::PI) as f32,
         );
     }
 }
@@ -282,12 +277,13 @@ pub fn rotate_moon(
 pub fn moon_orbit(
     mut body_query: Query<&mut Transform, With<MoonBody>>,
     orbit: Res<LunarOrbit>,
-    time: Res<Time>,
-    time_scale: Res<TimeScale>,
+    physics_time_q: Query<&PhysicsTime>,
 ) {
+    let physics_time = physics_time_q.single();
+
     let mut posn = orbit
         .orbit
-        .position(time.elapsed_seconds_f64() * time_scale.scale);
+        .position(physics_time.clock_seconds);
 
     // Convert from physical coordinates to world/scene coordinates
     posn.x *= REAL_TO_WORLD;

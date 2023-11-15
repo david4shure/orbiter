@@ -41,7 +41,7 @@ fn main() {
     App::new()
         .add_plugins((DefaultPlugins, PostProcessPlugin))
         .add_systems(Startup, setup)
-        .add_systems(Update, (rotate, update_settings))
+        .add_systems(Update, (update_settings))
         .insert_resource(Msaa::Off)
         .run();
 }
@@ -394,17 +394,6 @@ fn setup(
         transform: Transform::from_translation(Vec3::new(0.0, 0.0, 10.0)),
         ..default()
     });
-}
-
-#[derive(Component)]
-struct Rotates;
-
-/// Rotates any entity around the x and y axis
-fn rotate(time: Res<Time>, mut query: Query<&mut Transform, With<Rotates>>) {
-    for mut transform in &mut query {
-        transform.rotate_x(0.55 * time.delta_seconds());
-        transform.rotate_z(0.15 * time.delta_seconds());
-    }
 }
 
 // Change the intensity over time to show that the effect is controlled from the main world

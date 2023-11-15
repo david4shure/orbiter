@@ -31,6 +31,7 @@ pub struct SphereCamera {
     pub look_outward: bool,
     pub frozen: bool,
     pub up: Vec3,
+    pub min_radius: f32,
 }
 
 impl Default for SphereCamera {
@@ -44,6 +45,7 @@ impl Default for SphereCamera {
             look_outward: false,
             frozen: false,
             up: Vec3::new(0., 1., 0.),
+            min_radius: 500.1,
         }
     }
 }
@@ -134,12 +136,12 @@ pub fn update_sphere_camera_from_mouse_motion(
     }
 
     if input_mouse.pressed(rotate_button) {
-        for ev in ev_motion.iter() {
+        for ev in ev_motion.read() {
             net_motion += ev.delta;
         }
     }
 
-    for ev in ev_scroll.iter() {
+    for ev in ev_scroll.read() {
         scroll += ev.y;
     }
 
@@ -177,8 +179,8 @@ pub fn update_sphere_camera_from_mouse_motion(
         phi = FLIP_PADDING;
     }
 
-    if radius < 500.1 {
-        radius = 500.1;
+    if radius < sphere_camera.min_radius {
+        radius = sphere_camera.min_radius;
     }
 
     sphere_camera.phi = phi;
@@ -233,6 +235,8 @@ pub fn toggle_look_outward_camera(
         sphere_camera.look_outward = !sphere_camera.look_outward;
 
         if sphere_camera.look_outward {
+            sphere_camera.radius = sphere_camera.min_radius;
+
             let (pos, up, north) = camera_coords_and_look_vector(&sphere_camera);
 
             commands.entity(camera_entity).despawn();
@@ -275,6 +279,7 @@ pub fn toggle_look_outward_camera(
                     ..Default::default()
                 })
                 .id();
+
             let south = commands
                 .spawn(SceneBundle {
                     scene: south_handle,
@@ -307,6 +312,7 @@ pub fn toggle_look_outward_camera(
             commands.entity(cube).add_child(south);
             commands.entity(cube).add_child(east);
             commands.entity(cube).add_child(west);
+
         } else {
             let fix_marker_cube = fix_marker_query.get_single_mut().unwrap();
 
