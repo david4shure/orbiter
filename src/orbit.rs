@@ -42,7 +42,7 @@ impl Default for LunarOrbit {
     fn default() -> Self {
         return LunarOrbit {
             orbit: OrbitalParameters::new(
-                0.3844e6, 0.0549, 0.08970992, 2.6052996, 3.17633867, 5.9722e+24, 2360592.,
+                0.3844e6, 0.0549, 0.32043721467, 2.6052996, 3.17633867, 5.9722e+24, 2360592.,
             ),
         };
     }
@@ -131,37 +131,41 @@ impl OrbitalParameters {
 
         let coords = arr1(&[x, y, z]);
 
-        let w_trans = arr2(&[
+
+        // cos Ω cos ω − sin Ω sin ω cos i 
+        let i_1_1 = self.longitude_asc_node.cos() * self.arg_of_periapsis.cos() - self.longitude_asc_node.sin() * self.arg_of_periapsis.sin() * self.inclination.cos();
+        // − cos Ω sin ω − sin Ω cos ω cos i
+        let i_1_2  = - self.longitude_asc_node.cos() * self.arg_of_periapsis.sin() - self.longitude_asc_node.sin() * self.arg_of_periapsis.cos() * self.inclination.cos();
+        // sin Ω sin i
+        let i_1_3 = self.longitude_asc_node.sin() * self.inclination.sin();
+
+        // sin Ω cos ω + cos Ω sin ω cos i
+        let i_2_1 = self.longitude_asc_node.sin() * self.arg_of_periapsis.cos() + self.longitude_asc_node.cos() * self.arg_of_periapsis.sin() * self.inclination.cos();
+        // − sin Ω sin ω + cos Ω cos ω cos i
+        let i_2_2 = - self.longitude_asc_node.sin() * self.arg_of_periapsis.sin() + self.longitude_asc_node.cos() * self.arg_of_periapsis.cos() * self.inclination.cos();
+        // − cos Ω sin i
+        let i_2_3 = - self.longitude_asc_node.cos() * self.inclination.sin();
+
+        // sin ω sin i
+        let i_3_1 = self.arg_of_periapsis.sin() * self.inclination.sin();
+        // cos ω sin i
+        let i_3_2 = self.arg_of_periapsis.cos() * self.inclination.sin();
+        // cos i
+        let i_3_3 = self.inclination.cos();
+
+        let trans: ndarray::prelude::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::prelude::Dim<[usize; 2]>> = arr2(&[
             [
-                self.arg_of_periapsis.cos(),
-                -self.arg_of_periapsis.sin(),
-                0.,
+                i_1_1, i_1_2, i_1_3,
             ],
-            [self.arg_of_periapsis.sin(), self.arg_of_periapsis.cos(), 0.],
-            [0., 0., 1.],
+            [
+                i_2_1, i_2_2, i_2_3,
+            ],
+            [
+                i_3_1, i_3_2, i_3_3,
+            ],
         ]);
 
-        let i_trans = arr2(&[
-            [1., 0., 0.],
-            [0., self.inclination.cos(), -self.inclination.sin()],
-            [0., self.inclination.sin(), self.inclination.cos()],
-        ]);
-
-        let omega_trans = arr2(&[
-            [
-                self.longitude_asc_node.cos(),
-                -self.longitude_asc_node.sin(),
-                0.,
-            ],
-            [
-                self.longitude_asc_node.sin(),
-                self.longitude_asc_node.cos(),
-                0.,
-            ],
-            [0., 0., 1.],
-        ]);
-
-        let final_coords = (omega_trans.dot(&w_trans.dot(&i_trans))).dot(&coords);
+        let final_coords = trans.dot(&coords);
 
         return Vec3::new(
             final_coords[0] as f32,
