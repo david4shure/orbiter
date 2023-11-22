@@ -38,11 +38,41 @@ pub struct LunarOrbit {
     pub orbit: OrbitalParameters,
 }
 
+
+// EC= 6.476694128611285E-02 QR= 3.565283199467715E+05 IN= 5.240010829674768E+00
+// OM= 1.239837028145578E+02 W = 3.081359034620368E+02 Tp=  2451533.965359285008
+// N = 1.546268358955514E-04 MA= 1.407402571142365E+02 TA= 1.451550311169052E+02
+// A = 3.812186883524646E+05 AD= 4.059090567581577E+05 PR= 2.328185776517964E+06
+
+// Symbol meaning:
+
+// JDTDB    Julian Day Number, Barycentric Dynamical Time
+//   EC     Eccentricity, e
+//   QR     Periapsis distance, q (km)
+//   IN     Inclination w.r.t X-Y plane, i (degrees)
+//   OM     Longitude of Ascending Node, OMEGA, (degrees)
+//   W      Argument of Perifocus, w (degrees)
+//   Tp     Time of periapsis (Julian Day Number)
+//   N      Mean motion, n (degrees/sec)
+//   MA     Mean anomaly, M (degrees)
+//   TA     True anomaly, nu (degrees)
+//   A      Semi-major axis, a (km)
+//   AD     Apoapsis distance (km)
+//   PR     Sidereal orbit period (sec)
+
 impl Default for LunarOrbit {
     fn default() -> Self {
         return LunarOrbit {
             orbit: OrbitalParameters::new(
-                0.3844e6, 0.0549, 0.32043721467, 2.6052996, 3.17633867, 5.9722e+24, 2360592.,
+                2.45638088,
+                3.812186883524646E+05, 
+                6.476694128611285E-02, 
+                0.3361502582,
+                5.37798606, 
+                2.16392383, 
+                5.9722e+24,
+                2360584.6848,
+                2360592.,
             ),
         };
     }
@@ -75,6 +105,7 @@ pub struct OrbitalParameters {
     pub grav_parameter: f64,     // KM^3s^-2
     pub period: f64,             // Seconds
     pub rotational_period: f64,  // Seconds
+    pub mean_anomaly_at_epoch: f64, // Angles
 }
 
 impl Default for OrbitalParameters {
@@ -89,22 +120,26 @@ impl Default for OrbitalParameters {
             grav_parameter: 0.,
             period: 0.,
             rotational_period: 0.,
+            mean_anomaly_at_epoch: 0.,
         }
     }
 }
 
 impl OrbitalParameters {
     pub fn new(
+        mean_anomaly_at_epoch: f64,
         semimajor_axis: f64,
         eccentricity: f64,
         inclination: f64,
         arg_of_periapsis: f64,
         longitude_asc_node: f64,
         mass_of_parent: f64,
+        period: f64,
         rotational_period: f64,
     ) -> OrbitalParameters {
         let mu = G * mass_of_parent;
         OrbitalParameters {
+            mean_anomaly_at_epoch,
             semimajor_axis,
             eccentricity,
             inclination,
@@ -112,7 +147,7 @@ impl OrbitalParameters {
             longitude_asc_node,
             mass_of_parent,
             grav_parameter: mu,
-            period: 2. * PI64 * (semimajor_axis.powf(3.) / mu).sqrt(),
+            period: period,
             rotational_period,
         }
     }
@@ -120,7 +155,7 @@ impl OrbitalParameters {
     pub fn position(mut self, t: f64) -> Vec3 {
         self.period = 2. * PI64 * (self.semimajor_axis.powf(3.) / self.grav_parameter).sqrt();
 
-        let mean_anomaly = self.mean_anomaly(t % self.period, self.period);
+        let mean_anomaly = self.mean_anomaly(t % self.period);
         let eccentric_anomaly = self.eccentric_anomaly(mean_anomaly);
         let true_anomaly = self.true_anomaly(eccentric_anomaly);
         let distance = self.distance(eccentric_anomaly);
@@ -130,7 +165,6 @@ impl OrbitalParameters {
         let z = 0.;
 
         let coords = arr1(&[x, y, z]);
-
 
         // cos Ω cos ω − sin Ω sin ω cos i 
         let i_1_1 = self.longitude_asc_node.cos() * self.arg_of_periapsis.cos() - self.longitude_asc_node.sin() * self.arg_of_periapsis.sin() * self.inclination.cos();
@@ -153,16 +187,10 @@ impl OrbitalParameters {
         // cos i
         let i_3_3 = self.inclination.cos();
 
-        let trans: ndarray::prelude::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::prelude::Dim<[usize; 2]>> = arr2(&[
-            [
-                i_1_1, i_1_2, i_1_3,
-            ],
-            [
-                i_2_1, i_2_2, i_2_3,
-            ],
-            [
-                i_3_1, i_3_2, i_3_3,
-            ],
+        let trans = arr2(&[
+            [i_1_1, i_1_2, i_1_3],
+            [i_2_1, i_2_2, i_2_3],
+            [i_3_1, i_3_2, i_3_3],
         ]);
 
         let final_coords = trans.dot(&coords);
@@ -174,8 +202,10 @@ impl OrbitalParameters {
         );
     }
 
-    pub fn mean_anomaly(&self, t: f64, period: f64) -> f64 {
-        (t / period) * 2. * PI64
+    pub fn mean_anomaly(&self, t: f64) -> f64 {
+        // println!("Expected mean anomaly = {}",2.45638088);
+        // println!("Actual mean anomaly = {}", self.mean_anomaly_at_epoch + self.mean_motion() * t);
+        (self.mean_anomaly_at_epoch + self.mean_motion() * t) % (2. * std::f64::consts::PI) 
     }
 
     pub fn eccentric_anomaly(&self, mean_anomaly: f64) -> f64 {
@@ -206,14 +236,21 @@ impl OrbitalParameters {
                 return 0. as f64;
             }
         }
-
+        
         e_np1
     }
 
+    pub fn mean_motion(&self) -> f64 {
+        (2. * std::f64::consts::PI) / self.period
+    }
+
     pub fn true_anomaly(&self, eccentric_anomaly: f64) -> f64 {
-        2. * (((1. + self.eccentricity) / (1. - self.eccentricity)).sqrt()
+        let t_a = 2. * (((1. + self.eccentricity) / (1. - self.eccentricity)).sqrt()
             * (eccentric_anomaly / 2.).tan())
-        .atan()
+        .atan();
+
+        // println!("True anomaly = {}, expected = {}", t_a, 2.53343322);
+        t_a
     }
 
     pub fn distance(&self, eccentric_anomaly: f64) -> f64 {

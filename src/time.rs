@@ -2,6 +2,8 @@ use bevy::input::keyboard::KeyboardInput;
 use bevy::prelude::*;
 use bevy_inspector_egui::InspectorOptions;
 use bevy_inspector_egui::prelude::ReflectInspectorOptions;
+use chrono::{prelude::*, Duration, DurationRound};
+use chrono::offset::LocalResult;
 
 use crate::orbit::{EarthBody, MoonBody, LunarOrbit};
 
@@ -21,6 +23,9 @@ pub enum PhysicsTimeMode {
     StopTick,
 }
 
+#[derive(Component)]
+pub struct TimeLabel;
+
 impl Default for PhysicsTime {
     fn default() -> Self {
         return PhysicsTime { scale: 1., clock_seconds: 0., delta_seconds: 0., mode: PhysicsTimeMode::Elapsing, tick_interval_seconds: 86400. };
@@ -35,6 +40,7 @@ impl Plugin for PhysicsTimePlugin {
             .add_systems(Update, stop_tick_mode_input_moon)
             .add_systems(Update, stop_tick_mode_input_earth)
             .add_systems(Update, stop_tick)
+            .add_systems(Update, draw_date)
             .add_systems(Startup, setup)
             .register_type::<PhysicsTime>();
     }
@@ -48,6 +54,23 @@ pub fn setup(
             ..default()
         }
     ).insert(Name::new("Physics Time"));
+
+    commands.spawn((
+        TextBundle::from_section(
+            "",
+            TextStyle {
+                font_size: 20.0,
+                ..default()
+            },
+        )
+        .with_style(Style {
+            position_type: PositionType::Absolute,
+            top: Val::Px(12.0),
+            right: Val::Px(12.0),
+            ..default()
+        }),
+        TimeLabel,
+    ));
 }
 
 pub fn sync_physics_clock(
@@ -142,4 +165,29 @@ pub fn stop_tick_mode_input_earth(
         println!("Rotating for {} radians", -val);
         earth_trans.rotate_y(-val as f32);
     }
+}
+
+pub fn draw_date(
+    mut physics_time_q: Query<&mut PhysicsTime>,
+    mut text_query: Query<&mut Text, With<TimeLabel>>,
+) {
+    let mut text = text_query.get_single_mut().unwrap();
+    let physics_time = physics_time_q.get_single_mut().unwrap();
+
+    let seconds_since_j2000 = physics_time.clock_seconds;
+
+    println!("Clock seconds {}", seconds_since_j2000);
+
+    let reference_date = Utc.with_ymd_and_hms(2000, 1, 1, 0, 0, 0).unwrap(); // `2014-07-08T09:10:11Z`
+
+    let duration = Duration::milliseconds((seconds_since_j2000 * 1000.) as i64);
+
+    let date = reference_date + duration;
+
+    let date_string = date.to_rfc2822();
+
+    text.sections[0].value = format!(
+        "{}",
+        date_string
+    );
 }

@@ -116,7 +116,7 @@ fn setup(mut commands: Commands, ass: Res<AssetServer>) {
         .spawn((
             SceneBundle {
                 scene: skybox_handle,
-                transform: Transform::from_xyz(0., 0., 0.),
+                transform: Transform::from_xyz(0., 0., 0.).with_scale(Vec3::new(400.,400.,400.)),
                 ..default()
             },
             NotShadowCaster,
