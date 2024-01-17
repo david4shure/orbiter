@@ -22,7 +22,7 @@ mod time;
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins) 
         .add_systems(Startup, setup)
         .add_systems(Update, sync_data_to_atmosphere_settings)
         .add_plugins(TopoCentricCameraPlugin)
@@ -35,7 +35,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, ass: Res<AssetServer>) {
-    let earth_handle = ass.load("earth.glb#Scene0");
+    let earth_handle = ass.load("earth_updated.glb#Scene0");
     let skybox_handle = ass.load("sky_actual_constel.glb#Scene0");
     let moon_handle = ass.load("moon.glb#Scene0");
 
